@@ -8,10 +8,6 @@ import Settlement from './pages/Settlement';
 import SettingsPage from './pages/SettingsPage';
 import { Toaster } from 'react-hot-toast';
 import { MemberProvider, useMember } from './context/MemberContext';
-import axios from 'axios';
-
-// Configure Axios Base URL for Production (Vercel -> Render)
-axios.defaults.baseURL = import.meta.env.VITE_API_URL || '';
 
 function TopMemberSelector() {
   const location = useLocation();
