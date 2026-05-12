@@ -68,7 +68,7 @@ export default function ExpenseHistory() {
             placeholder="Search expenses" 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="apple-input pl-12 py-3 bg-white shadow-sm font-medium"
+            className="apple-input pl-12 py-3 !bg-apple-card shadow-sm font-medium transition-colors duration-300"
           />
         </div>
         <div className="relative w-36">
@@ -76,7 +76,7 @@ export default function ExpenseHistory() {
           <select 
             value={filterMember}
             onChange={(e) => setFilterMember(e.target.value)}
-            className="apple-input pl-11 py-3 appearance-none bg-white shadow-sm font-semibold relative z-0"
+            className="apple-input pl-11 py-3 appearance-none !bg-apple-card shadow-sm font-semibold relative z-0 transition-colors duration-300"
           >
             <option value="All">All</option>
             {members.map(m => <option key={m} value={m}>{m}</option>)}

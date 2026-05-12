@@ -64,7 +64,7 @@ export default function Dashboard() {
   return (
     <div className="px-5 pt-2 space-y-8">
       {/* Month Selector */}
-      <div className="flex items-center justify-between bg-white/80 backdrop-blur-md rounded-full px-4 py-2 shadow-sm border border-apple-border/50 max-w-[200px] mx-auto">
+      <div className="flex items-center justify-between bg-apple-card/80 backdrop-blur-md rounded-full px-4 py-2 shadow-sm border border-apple-border/50 max-w-[200px] mx-auto transition-colors duration-300">
         <button onClick={handlePrevMonth} className="text-apple-textMuted hover:text-apple-text p-1 active:scale-90 transition-all">
           <ChevronLeft size={20} />
         </button>

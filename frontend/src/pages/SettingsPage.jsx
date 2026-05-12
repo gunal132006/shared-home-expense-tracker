@@ -42,7 +42,7 @@ export default function SettingsPage() {
       <div className="space-y-8">
         <div>
           <h2 className="text-xs font-bold text-apple-textMuted uppercase tracking-widest mb-3 ml-4">House Settings</h2>
-          <div className="bg-white rounded-[2rem] shadow-apple overflow-hidden">
+          <div className="bg-apple-card rounded-[2rem] shadow-apple overflow-hidden transition-colors duration-300">
             <div className="p-4 pl-5 flex flex-col border-b border-apple-border/50">
               <div className="flex justify-between items-center w-full">
                 <div className="flex items-center gap-4">
@@ -85,7 +85,7 @@ export default function SettingsPage() {
 
         <div>
           <h2 className="text-xs font-bold text-apple-textMuted uppercase tracking-widest mb-3 ml-4">App Preferences</h2>
-          <div className="bg-white rounded-[2rem] shadow-apple overflow-hidden">
+          <div className="bg-apple-card rounded-[2rem] shadow-apple overflow-hidden transition-colors duration-300">
             
             <div 
               onClick={() => setIsDarkMode(!isDarkMode)}

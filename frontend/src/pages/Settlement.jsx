@@ -92,7 +92,7 @@ export default function Settlement() {
                     <span className={`font-black text-base ${s.to === activeMember ? 'text-apple-green' : 'text-apple-text'}`}>{s.to === activeMember ? 'You' : s.to}</span>
                   </div>
                 </div>
-                <div className={`font-black ml-4 px-3 py-1.5 rounded-xl tracking-tight whitespace-nowrap ${isMe ? 'bg-apple-blue text-white' : 'bg-apple-bg text-apple-textMuted'}`}>
+                <div className={`font-black ml-4 px-3 py-1.5 rounded-xl tracking-tight whitespace-nowrap transition-colors duration-300 ${isMe ? 'bg-apple-blue text-white' : 'bg-apple-gray text-apple-text'}`}>
                   ₹{s.amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                 </div>
               </div>

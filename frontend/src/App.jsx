@@ -29,8 +29,8 @@ function TopMemberSelector() {
               onClick={() => setActiveMember(member)}
               className={`snap-center shrink-0 rounded-full px-5 py-2.5 font-bold text-sm transition-all duration-300 ${
                 isActive 
-                  ? 'bg-apple-text text-white shadow-apple-lg scale-105' 
-                  : 'bg-white text-apple-textMuted hover:bg-white/80 border border-apple-border/30'
+                  ? 'bg-apple-text text-apple-card shadow-apple-lg scale-105' 
+                  : 'bg-apple-card text-apple-textMuted hover:bg-apple-card/80 border border-apple-border/50'
               }`}
             >
               {member}
