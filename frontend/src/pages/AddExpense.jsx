@@ -94,7 +94,7 @@ export default function AddExpense() {
                 value={formData.amount}
                 onChange={handleChange}
                 placeholder="0.00"
-                className="w-full bg-transparent text-5xl font-black text-apple-text placeholder-apple-textMuted/30 focus:outline-none"
+                className="w-full bg-transparent text-5xl font-black !text-black dark:!text-white placeholder:!text-gray-400 dark:placeholder:!text-gray-600 focus:outline-none opacity-100"
                 required
               />
             </div>
@@ -109,7 +109,7 @@ export default function AddExpense() {
                 value={formData.item_name}
                 onChange={handleChange}
                 placeholder="e.g. Milk, WiFi, Groceries"
-                className="apple-input font-semibold"
+                className="apple-input font-semibold !text-black dark:!text-white placeholder:!text-gray-500 dark:placeholder:!text-gray-400 opacity-100"
                 required
               />
             </div>
@@ -122,10 +122,10 @@ export default function AddExpense() {
                     name="member_name"
                     value={formData.member_name}
                     onChange={handleChange}
-                    className="apple-input appearance-none font-semibold cursor-pointer text-black dark:text-white bg-white dark:bg-apple-card dark:[color-scheme:dark]"
+                    className="apple-input appearance-none font-semibold cursor-pointer !text-black dark:!text-white bg-white dark:bg-apple-card dark:[color-scheme:dark] opacity-100"
                     required
                   >
-                    {members.map(m => <option key={m} value={m} className="text-black dark:text-white bg-white dark:bg-apple-card">{m}</option>)}
+                    {members.map(m => <option key={m} value={m} className="!text-black dark:!text-white bg-white dark:bg-apple-card">{m}</option>)}
                   </select>
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-apple-textMuted">
                     <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
@@ -140,7 +140,7 @@ export default function AddExpense() {
                   name="purchase_date"
                   value={formData.purchase_date}
                   onChange={handleChange}
-                  className="apple-input font-semibold text-black dark:text-white bg-white dark:bg-apple-card dark:[color-scheme:dark]"
+                  className="apple-input font-semibold !text-black dark:!text-white bg-white dark:bg-apple-card dark:[color-scheme:dark] opacity-100"
                   required
                 />
               </div>
@@ -153,7 +153,7 @@ export default function AddExpense() {
                 value={formData.notes}
                 onChange={handleChange}
                 placeholder="Add any extra details here..."
-                className="apple-input min-h-[100px] resize-none font-medium"
+                className="apple-input min-h-[100px] resize-none font-medium !text-black dark:!text-white placeholder:!text-gray-500 dark:placeholder:!text-gray-400 opacity-100"
               />
             </div>
           </div>
