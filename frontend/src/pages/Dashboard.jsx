@@ -5,11 +5,14 @@ import { ArrowUpRight, TrendingUp, ChevronRight, Activity, Wallet } from 'lucide
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useMember } from '../context/MemberContext';
+import { useMonth } from '../context/MonthContext';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const COLORS = ['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#AF52DE', '#5856D6', '#FF2D55'];
 
 export default function Dashboard() {
   const { activeMember } = useMember();
+  const { activeMonth, setActiveMonth, activeYear, setActiveYear } = useMonth();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -17,7 +20,7 @@ export default function Dashboard() {
     const fetchStats = async () => {
       setLoading(true);
       try {
-        const response = await axios.get(`/api/reports/dashboard/${activeMember}`);
+        const response = await axios.get(`/api/reports/dashboard/${activeMember}?month=${activeMonth}&year=${activeYear}`);
         setStats(response.data);
       } catch (error) {
         console.error('Failed to fetch stats', error);
@@ -26,7 +29,7 @@ export default function Dashboard() {
       }
     };
     fetchStats();
-  }, [activeMember]);
+  }, [activeMember, activeMonth, activeYear]);
 
   if (loading || !stats) {
     return (
@@ -41,8 +44,39 @@ export default function Dashboard() {
   const isOwed = stats.memberBalance > 0.01;
   const owes = stats.memberBalance < -0.01;
 
+  const handlePrevMonth = () => {
+    if (activeMonth === 1) {
+      setActiveMonth(12);
+      setActiveYear(activeYear - 1);
+    } else {
+      setActiveMonth(activeMonth - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (activeMonth === 12) {
+      setActiveMonth(1);
+      setActiveYear(activeYear + 1);
+    } else {
+      setActiveMonth(activeMonth + 1);
+    }
+  };
+
   return (
     <div className="px-5 pt-2 space-y-8">
+      {/* Month Selector */}
+      <div className="flex items-center justify-between bg-white/80 backdrop-blur-md rounded-full px-4 py-2 shadow-sm border border-apple-border/50 max-w-[200px] mx-auto">
+        <button onClick={handlePrevMonth} className="text-apple-textMuted hover:text-apple-text p-1 active:scale-90 transition-all">
+          <ChevronLeft size={20} />
+        </button>
+        <span className="font-bold text-sm tracking-wide text-apple-text">
+          {format(new Date(activeYear, activeMonth - 1), 'MMM yyyy')}
+        </span>
+        <button onClick={handleNextMonth} className="text-apple-textMuted hover:text-apple-text p-1 active:scale-90 transition-all">
+          <ChevronRight size={20} />
+        </button>
+      </div>
+
       {/* Wallet Card */}
       <div className={`wallet-card transition-all duration-500 ease-in-out ${owes ? 'bg-gradient-to-br from-[#FF3B30] to-[#E3261C]' : isOwed ? 'bg-gradient-to-br from-[#34C759] to-[#249B44]' : 'bg-gradient-to-br from-[#007AFF] to-[#0056B3]'}`}>
         <div className="absolute top-0 right-0 w-48 h-48 bg-white/20 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>

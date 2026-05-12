@@ -85,7 +85,7 @@ app.get('/api/expenses', async (req, res) => {
     let result;
     if (month && year) {
       result = await db.query(
-        "SELECT * FROM expenses WHERE EXTRACT(MONTH FROM purchase_date) = $1 AND EXTRACT(YEAR FROM purchase_date) = $2 ORDER BY purchase_date DESC",
+        "SELECT * FROM expenses WHERE month = $1 AND year = $2 ORDER BY purchase_date DESC",
         [parseInt(month), parseInt(year)]
       );
     } else {
@@ -106,9 +106,13 @@ app.post('/api/expenses', async (req, res) => {
   }
   
   try {
+    const dateObj = new Date(purchase_date);
+    const month = dateObj.getMonth() + 1;
+    const year = dateObj.getFullYear();
+    
     const result = await db.query(
-      "INSERT INTO expenses (item_name, amount, member_name, purchase_date, notes) VALUES ($1, $2, $3, $4, $5) RETURNING id",
-      [item_name, parseFloat(amount), member_name, purchase_date, notes || '']
+      "INSERT INTO expenses (item_name, amount, member_name, purchase_date, notes, month, year) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
+      [item_name, parseFloat(amount), member_name, purchase_date, notes || '', month, year]
     );
     res.status(201).json({ success: true, id: result.rows[0].id });
   } catch (error) {
@@ -122,9 +126,13 @@ app.put('/api/expenses/:id', async (req, res) => {
   const { item_name, amount, member_name, purchase_date, notes } = req.body;
   
   try {
+    const dateObj = new Date(purchase_date);
+    const month = dateObj.getMonth() + 1;
+    const year = dateObj.getFullYear();
+    
     await db.query(
-      "UPDATE expenses SET item_name = $1, amount = $2, member_name = $3, purchase_date = $4, notes = $5 WHERE id = $6",
-      [item_name, parseFloat(amount), member_name, purchase_date, notes || '', id]
+      "UPDATE expenses SET item_name = $1, amount = $2, member_name = $3, purchase_date = $4, notes = $5, month = $6, year = $7 WHERE id = $8",
+      [item_name, parseFloat(amount), member_name, purchase_date, notes || '', month, year, id]
     );
     res.json({ success: true });
   } catch (error) {
@@ -157,7 +165,7 @@ app.get('/api/reports/settlement', async (req, res) => {
 
     // Get expenses
     const expensesRes = await db.query(
-      "SELECT * FROM expenses WHERE EXTRACT(MONTH FROM purchase_date) = $1 AND EXTRACT(YEAR FROM purchase_date) = $2",
+      "SELECT * FROM expenses WHERE month = $1 AND year = $2",
       [targetMonth, targetYear]
     );
     const expenses = expensesRes.rows;
@@ -236,16 +244,17 @@ app.get('/api/reports/settlement', async (req, res) => {
 // Member Dashboard Stats API
 app.get('/api/reports/dashboard/:memberId', async (req, res) => {
   const memberId = req.params.memberId;
-  const currentMonth = new Date().getMonth() + 1;
-  const currentYear = new Date().getFullYear();
+  const { month, year } = req.query;
+  const targetMonth = month ? parseInt(month) : (new Date().getMonth() + 1);
+  const targetYear = year ? parseInt(year) : new Date().getFullYear();
   
   try {
     const settingsRes = await db.query("SELECT * FROM settings WHERE setting_key = 'monthly_rent'");
     const rent = settingsRes.rows.length > 0 ? parseFloat(settingsRes.rows[0].setting_value) : 17380;
 
     const expensesRes = await db.query(
-      "SELECT * FROM expenses WHERE EXTRACT(MONTH FROM purchase_date) = $1 AND EXTRACT(YEAR FROM purchase_date) = $2 ORDER BY purchase_date DESC",
-      [currentMonth, currentYear]
+      "SELECT * FROM expenses WHERE month = $1 AND year = $2 ORDER BY purchase_date DESC",
+      [targetMonth, targetYear]
     );
     const expenses = expensesRes.rows;
 

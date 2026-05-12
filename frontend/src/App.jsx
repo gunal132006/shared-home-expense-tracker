@@ -8,6 +8,7 @@ import Settlement from './pages/Settlement';
 import SettingsPage from './pages/SettingsPage';
 import { Toaster } from 'react-hot-toast';
 import { MemberProvider, useMember } from './context/MemberContext';
+import { MonthProvider } from './context/MonthContext';
 
 function TopMemberSelector() {
   const location = useLocation();
@@ -91,25 +92,27 @@ function BottomNav() {
 function App() {
   return (
     <MemberProvider>
-      <Router>
-        <div className="min-h-[100dvh] max-w-md mx-auto bg-apple-bg relative selection:bg-apple-blue/20 flex flex-col shadow-2xl overflow-x-hidden">
-          <Toaster position="top-center" toastOptions={{ 
-            className: '!bg-black/80 !text-white !rounded-full !px-6 !py-3 font-semibold text-sm backdrop-blur-md border border-white/10 shadow-apple-lg',
-            duration: 3000
-          }} />
-          <TopMemberSelector />
-          <div className="flex-1 overflow-y-auto pb-32">
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/add" element={<AddExpense />} />
-              <Route path="/history" element={<ExpenseHistory />} />
-              <Route path="/settlement" element={<Settlement />} />
-              <Route path="/settings" element={<SettingsPage />} />
-            </Routes>
+      <MonthProvider>
+        <Router>
+          <div className="min-h-[100dvh] max-w-md mx-auto bg-apple-bg relative selection:bg-apple-blue/20 flex flex-col shadow-2xl overflow-x-hidden">
+            <Toaster position="top-center" toastOptions={{ 
+              className: '!bg-black/80 !text-white !rounded-full !px-6 !py-3 font-semibold text-sm backdrop-blur-md border border-white/10 shadow-apple-lg',
+              duration: 3000
+            }} />
+            <TopMemberSelector />
+            <div className="flex-1 overflow-y-auto pb-32">
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/add" element={<AddExpense />} />
+                <Route path="/history" element={<ExpenseHistory />} />
+                <Route path="/settlement" element={<Settlement />} />
+                <Route path="/settings" element={<SettingsPage />} />
+              </Routes>
+            </div>
+            <BottomNav />
           </div>
-          <BottomNav />
-        </div>
-      </Router>
+        </Router>
+      </MonthProvider>
     </MemberProvider>
   );
 }

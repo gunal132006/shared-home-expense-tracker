@@ -6,16 +6,18 @@ import { Download, ArrowRight, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { useMember } from '../context/MemberContext';
+import { useMonth } from '../context/MonthContext';
 
 export default function Settlement() {
   const { activeMember } = useMember();
+  const { activeMonth, activeYear } = useMonth();
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchSettlement = async () => {
       try {
-        const res = await axios.get('/api/reports/settlement');
+        const res = await axios.get(`/api/reports/settlement?month=${activeMonth}&year=${activeYear}`);
         setReport(res.data);
       } catch (error) {
         toast.error('Failed to generate settlement report');
@@ -24,12 +26,12 @@ export default function Settlement() {
       }
     };
     fetchSettlement();
-  }, []);
+  }, [activeMonth, activeYear]);
 
   const downloadPDF = () => {
     if (!report) return;
     const doc = new jsPDF();
-    const monthYear = format(new Date(), 'MMMM yyyy');
+    const monthYear = format(new Date(activeYear, activeMonth - 1), 'MMMM yyyy');
     
     doc.setFontSize(20);
     doc.text(`Settlement Report - ${monthYear}`, 14, 22);
@@ -92,7 +94,7 @@ export default function Settlement() {
     <div className="px-5 pt-4 pb-12">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <p className="text-sm font-semibold text-apple-textMuted uppercase tracking-widest">{format(new Date(), 'MMMM yyyy')}</p>
+          <p className="text-sm font-semibold text-apple-textMuted uppercase tracking-widest">{format(new Date(activeYear, activeMonth - 1), 'MMMM yyyy')}</p>
           <h1 className="text-3xl font-black text-apple-text tracking-tight mt-1">Settlement</h1>
         </div>
         <button onClick={downloadPDF} className="h-12 w-12 bg-white rounded-full flex items-center justify-center shadow-apple text-apple-blue active:scale-95 transition-transform">

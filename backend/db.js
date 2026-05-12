@@ -40,9 +40,22 @@ const initDB = async () => {
       );
     `);
 
-    // Create index on member_name and purchase_date for faster queries
+    // Safely add month and year columns to support monthly history tracking
+    await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS month INTEGER;`);
+    await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS year INTEGER;`);
+
+    // Backfill month and year for existing records based on their purchase_date
+    await pool.query(`
+      UPDATE expenses 
+      SET month = EXTRACT(MONTH FROM purchase_date), 
+          year = EXTRACT(YEAR FROM purchase_date) 
+      WHERE month IS NULL OR year IS NULL;
+    `);
+
+    // Create indexes for faster queries
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_member_name ON expenses(member_name);`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_purchase_date ON expenses(purchase_date);`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_month_year ON expenses(month, year);`);
 
     console.log('PostgreSQL Database initialized successfully.');
   } catch (error) {

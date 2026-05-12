@@ -4,9 +4,11 @@ import { format } from 'date-fns';
 import { Search, Filter, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useMember } from '../context/MemberContext';
+import { useMonth } from '../context/MonthContext';
 
 export default function ExpenseHistory() {
   const { activeMember } = useMember();
+  const { activeMonth, activeYear } = useMonth();
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -15,7 +17,7 @@ export default function ExpenseHistory() {
 
   const fetchExpenses = async () => {
     try {
-      const res = await axios.get('/api/expenses');
+      const res = await axios.get(`/api/expenses?month=${activeMonth}&year=${activeYear}`);
       setExpenses(res.data);
     } catch (error) {
       toast.error('Failed to fetch expenses');
@@ -34,7 +36,7 @@ export default function ExpenseHistory() {
   useEffect(() => {
     fetchExpenses();
     fetchMembers();
-  }, []);
+  }, [activeMonth, activeYear]);
 
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this expense?')) {
