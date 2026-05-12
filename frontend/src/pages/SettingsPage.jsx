@@ -122,6 +122,7 @@ export default function SettingsPage() {
         <div className="text-center pt-8">
           <p className="text-sm font-bold text-apple-textMuted tracking-tight">Shared Home Expense Tracker</p>
           <p className="text-xs font-semibold text-apple-textMuted/70 mt-1">Version 1.0.0 • SQLite Edition</p>
+          <p className="text-xs font-semibold text-apple-textMuted/70 mt-1">Developer: Gunal S</p>
         </div>
       </div>
     </div>

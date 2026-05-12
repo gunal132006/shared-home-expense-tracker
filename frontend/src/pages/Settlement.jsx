@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
-import { Download, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { useMember } from '../context/MemberContext';
@@ -28,51 +26,6 @@ export default function Settlement() {
     fetchSettlement();
   }, [activeMonth, activeYear]);
 
-  const downloadPDF = () => {
-    if (!report) return;
-    const doc = new jsPDF();
-    const monthYear = format(new Date(activeYear, activeMonth - 1), 'MMMM yyyy');
-    
-    doc.setFontSize(20);
-    doc.text(`Settlement Report - ${monthYear}`, 14, 22);
-    
-    doc.setFontSize(12);
-    doc.text(`Total Shared Expenses: Rs. ${report.totalSharedExpense.toFixed(2)}`, 14, 32);
-    doc.text(`Monthly Rent: Rs. ${report.monthlyRent.toFixed(2)}`, 14, 38);
-    doc.text(`Grand Total: Rs. ${report.totalHouseExpense.toFixed(2)}`, 14, 44);
-    doc.text(`Per Person Share: Rs. ${report.perPersonShare.toFixed(2)}`, 14, 50);
-
-    const tableData = report.balances.map(b => [
-      b.member,
-      b.spent.toFixed(2),
-      b.share.toFixed(2),
-      b.balance.toFixed(2),
-      b.status
-    ]);
-
-    doc.autoTable({
-      startY: 60,
-      head: [['Member', 'Spent', 'Share', 'Balance', 'Status']],
-      body: tableData,
-    });
-
-    const finalY = doc.lastAutoTable.finalY || 60;
-    doc.text('Settlement Suggestions:', 14, finalY + 10);
-    
-    const suggestionsData = report.suggestions.map(s => [
-      s.from, 'pays', s.to, `Rs. ${s.amount.toFixed(2)}`
-    ]);
-
-    doc.autoTable({
-      startY: finalY + 15,
-      body: suggestionsData,
-      theme: 'plain'
-    });
-
-    doc.save(`Settlement_${monthYear}.pdf`);
-    toast.success('PDF Downloaded');
-  };
-
   if (loading || !report) {
     return (
       <div className="px-5 pt-12 space-y-8 animate-pulse">
@@ -97,9 +50,6 @@ export default function Settlement() {
           <p className="text-sm font-semibold text-apple-textMuted uppercase tracking-widest">{format(new Date(activeYear, activeMonth - 1), 'MMMM yyyy')}</p>
           <h1 className="text-3xl font-black text-apple-text tracking-tight mt-1">Settlement</h1>
         </div>
-        <button onClick={downloadPDF} className="h-12 w-12 bg-white rounded-full flex items-center justify-center shadow-apple text-apple-blue active:scale-95 transition-transform">
-          <Download size={20} strokeWidth={2.5} />
-        </button>
       </div>
 
       <div className="wallet-card mb-8">
