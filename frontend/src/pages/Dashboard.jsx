@@ -194,7 +194,7 @@ export default function Dashboard() {
               return (
                 <div key={expense.id} className={`apple-card apple-card-hover p-4 flex justify-between items-center ${isMine ? 'border border-apple-blue/20' : ''}`}>
                   <div className="flex items-center gap-4">
-                    <div className={`h-12 w-12 rounded-2xl flex items-center justify-center text-lg font-black ${isMine ? 'bg-apple-blue text-white' : 'bg-[#F2F2F7] text-apple-text'}`}>
+                    <div className={`h-12 w-12 rounded-2xl flex items-center justify-center text-lg font-black transition-colors duration-300 ${isMine ? 'bg-apple-blue text-white' : 'bg-apple-gray text-apple-text'}`}>
                       {expense.member_name.charAt(0)}
                     </div>
                     <div>

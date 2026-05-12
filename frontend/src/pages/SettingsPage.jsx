@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { Home, Users, Moon, Info, ChevronRight, Check } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 
 export default function SettingsPage() {
   const [rent, setRent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isEditingRent, setIsEditingRent] = useState(false);
+  const { isDarkMode, setIsDarkMode } = useTheme();
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -85,15 +87,18 @@ export default function SettingsPage() {
           <h2 className="text-xs font-bold text-apple-textMuted uppercase tracking-widest mb-3 ml-4">App Preferences</h2>
           <div className="bg-white rounded-[2rem] shadow-apple overflow-hidden">
             
-            <div className="p-4 pl-5 flex justify-between items-center border-b border-apple-border/50 active:bg-apple-bg/50 transition-colors">
+            <div 
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className="p-4 pl-5 flex justify-between items-center border-b border-apple-border/50 active:bg-apple-bg/50 transition-colors cursor-pointer"
+            >
               <div className="flex items-center gap-4">
-                <div className="bg-[#1D1D1F] rounded-xl p-2.5 shadow-sm">
-                  <Moon size={20} className="text-white" strokeWidth={2.5} />
+                <div className="bg-[#1D1D1F] dark:bg-white rounded-xl p-2.5 shadow-sm transition-colors">
+                  <Moon size={20} className="text-white dark:text-[#1D1D1F] transition-colors" strokeWidth={2.5} />
                 </div>
                 <span className="font-bold text-apple-text text-lg tracking-tight">Dark Mode</span>
               </div>
-              <div className="w-14 h-8 bg-apple-border rounded-full flex items-center p-1 cursor-not-allowed opacity-50 relative">
-                <div className="w-6 h-6 bg-white rounded-full shadow-sm absolute left-1"></div>
+              <div className={`w-14 h-8 rounded-full flex items-center p-1 transition-colors duration-300 relative ${isDarkMode ? 'bg-apple-green' : 'bg-apple-border'}`}>
+                <div className={`w-6 h-6 bg-white rounded-full shadow-sm transition-transform duration-300 absolute ${isDarkMode ? 'translate-x-6' : 'translate-x-0'}`}></div>
               </div>
             </div>
             

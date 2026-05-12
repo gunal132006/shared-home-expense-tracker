@@ -108,7 +108,7 @@ export default function Settlement() {
           return (
             <div key={b.member} className={`apple-card !p-4 flex justify-between items-center group ${isMe ? 'ring-2 ring-apple-blue/20 bg-apple-blueLight/5' : ''}`}>
               <div className="flex items-center gap-4">
-                <div className={`h-12 w-12 rounded-2xl flex items-center justify-center font-black text-lg tracking-tight ${isMe ? 'bg-apple-blue text-white shadow-sm' : 'bg-[#F2F2F7] text-apple-text'}`}>
+                <div className={`h-12 w-12 rounded-2xl flex items-center justify-center font-black text-lg tracking-tight transition-colors duration-300 ${isMe ? 'bg-apple-blue text-white shadow-sm' : 'bg-apple-gray text-apple-text'}`}>
                   {b.member.substring(0, 2).toUpperCase()}
                 </div>
                 <div>

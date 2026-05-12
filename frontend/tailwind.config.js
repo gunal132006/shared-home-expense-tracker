@@ -11,18 +11,18 @@ export default {
       },
       colors: {
         apple: {
-          bg: '#F2F2F7',          // True iOS system background
-          card: '#FFFFFF',        // Pure white for cards
-          text: '#000000',        // Pure black for primary text
-          textMuted: '#8E8E93',   // iOS muted gray
-          blue: '#007AFF',        // Vivid iOS Blue
-          blueLight: '#E5F1FF',
-          green: '#34C759',       // Vivid iOS Green
-          greenLight: '#E8F8EC',
-          red: '#FF3B30',         // Vivid iOS Red
-          redLight: '#FFECEB',
-          border: '#E5E5EA',
-          gray: '#E5E5EA',
+          bg: 'rgb(var(--apple-bg) / <alpha-value>)',
+          card: 'rgb(var(--apple-card) / <alpha-value>)',
+          text: 'rgb(var(--apple-text) / <alpha-value>)',
+          textMuted: 'rgb(var(--apple-textMuted) / <alpha-value>)',
+          blue: 'rgb(var(--apple-blue) / <alpha-value>)',
+          blueLight: 'rgb(var(--apple-blueLight) / <alpha-value>)',
+          green: 'rgb(var(--apple-green) / <alpha-value>)',
+          greenLight: 'rgb(var(--apple-greenLight) / <alpha-value>)',
+          red: 'rgb(var(--apple-red) / <alpha-value>)',
+          redLight: 'rgb(var(--apple-redLight) / <alpha-value>)',
+          border: 'rgb(var(--apple-border) / <alpha-value>)',
+          gray: 'rgb(var(--apple-gray) / <alpha-value>)',
         }
       },
       boxShadow: {

@@ -3,9 +3,39 @@
 @import "tailwindcss";
 @config "../tailwind.config.js";
 
+:root {
+  --apple-bg: 242 242 247;
+  --apple-card: 255 255 255;
+  --apple-text: 0 0 0;
+  --apple-textMuted: 142 142 147;
+  --apple-blue: 0 122 255;
+  --apple-blueLight: 229 241 255;
+  --apple-green: 52 199 89;
+  --apple-greenLight: 232 248 236;
+  --apple-red: 255 59 48;
+  --apple-redLight: 255 236 235;
+  --apple-border: 229 229 234;
+  --apple-gray: 229 229 234;
+}
+
+.dark {
+  --apple-bg: 0 0 0;
+  --apple-card: 28 28 30;
+  --apple-text: 255 255 255;
+  --apple-textMuted: 152 152 157;
+  --apple-blue: 10 132 255;
+  --apple-blueLight: 10 132 255;
+  --apple-green: 48 209 88;
+  --apple-greenLight: 48 209 88;
+  --apple-red: 255 69 58;
+  --apple-redLight: 255 69 58;
+  --apple-border: 56 56 58;
+  --apple-gray: 44 44 46;
+}
+
 @layer base {
   body {
-    @apply bg-apple-bg text-apple-text font-sans antialiased overflow-x-hidden;
+    @apply bg-apple-bg text-apple-text font-sans antialiased overflow-x-hidden transition-colors duration-300;
     -webkit-tap-highlight-color: transparent;
     touch-action: pan-x pan-y;
   }
@@ -14,7 +44,7 @@
 @layer components {
   /* Premium Glass/Card Containers */
   .apple-card {
-    @apply bg-white rounded-3xl shadow-apple p-5 transition-all duration-300;
+    @apply bg-apple-card rounded-3xl shadow-apple p-5 transition-all duration-300;
   }
   
   .apple-card-hover {
@@ -22,13 +52,12 @@
   }
 
   .wallet-card {
-    @apply relative overflow-hidden rounded-[2rem] shadow-apple-lg text-white p-6;
-    background: linear-gradient(135deg, #007AFF 0%, #0056B3 100%);
+    @apply relative overflow-hidden rounded-[2rem] shadow-apple-lg text-white p-6 transition-colors duration-300;
   }
 
   /* Form Elements */
   .apple-input {
-    @apply w-full bg-[#F2F2F7] rounded-2xl px-5 py-4 text-apple-text text-lg focus:outline-none focus:ring-2 focus:ring-apple-blue/50 transition-all border border-transparent focus:bg-white;
+    @apply w-full bg-apple-bg rounded-2xl px-5 py-4 text-apple-text text-lg focus:outline-none focus:ring-2 focus:ring-apple-blue/50 transition-all border border-transparent focus:bg-apple-card;
   }
 
   /* Buttons */
@@ -37,12 +66,12 @@
   }
 
   .apple-btn-secondary {
-    @apply w-full bg-[#E5E5EA] text-apple-text rounded-2xl px-4 py-4 font-semibold active:scale-[0.97] transition-all flex items-center justify-center gap-2;
+    @apply w-full bg-apple-gray text-apple-text rounded-2xl px-4 py-4 font-semibold active:scale-[0.97] transition-all flex items-center justify-center gap-2;
   }
   
   /* Glass Navigation */
   .glass-nav {
-    @apply bg-white/80 backdrop-blur-xl border-t border-black/5;
+    @apply bg-apple-card/80 backdrop-blur-xl border-t border-apple-border/50 transition-colors duration-300;
   }
 }
 
