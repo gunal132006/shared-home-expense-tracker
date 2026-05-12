@@ -66,7 +66,7 @@ export default function AddExpense() {
   return (
     <div className="fixed inset-0 z-[100] bg-apple-bg flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between p-5 pt-12 pb-4 bg-white/80 backdrop-blur-xl border-b border-apple-border">
+      <div className="flex items-center justify-between p-5 pt-12 pb-4 bg-white/80 dark:bg-apple-bg/80 backdrop-blur-xl border-b border-apple-border">
         <button 
           type="button" 
           onClick={() => navigate(-1)}
@@ -122,10 +122,10 @@ export default function AddExpense() {
                     name="member_name"
                     value={formData.member_name}
                     onChange={handleChange}
-                    className="apple-input appearance-none font-semibold cursor-pointer bg-white"
+                    className="apple-input appearance-none font-semibold cursor-pointer bg-white dark:bg-apple-card dark:text-white dark:[color-scheme:dark]"
                     required
                   >
-                    {members.map(m => <option key={m} value={m}>{m}</option>)}
+                    {members.map(m => <option key={m} value={m} className="dark:bg-apple-card dark:text-white">{m}</option>)}
                   </select>
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-apple-textMuted">
                     <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
@@ -140,7 +140,7 @@ export default function AddExpense() {
                   name="purchase_date"
                   value={formData.purchase_date}
                   onChange={handleChange}
-                  className="apple-input font-semibold bg-white"
+                  className="apple-input font-semibold bg-white dark:bg-apple-card dark:text-white dark:[color-scheme:dark]"
                   required
                 />
               </div>
