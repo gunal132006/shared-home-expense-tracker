@@ -4,9 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { X } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 
 export default function AddExpense() {
   const navigate = useNavigate();
+  const { isDarkMode } = useTheme();
   const amountInputRef = useRef(null);
   
   const [formData, setFormData] = useState({
@@ -122,10 +124,27 @@ export default function AddExpense() {
                     name="member_name"
                     value={formData.member_name}
                     onChange={handleChange}
-                    className="apple-input appearance-none font-semibold cursor-pointer !text-black dark:!text-white bg-white dark:bg-apple-card dark:[color-scheme:dark] opacity-100"
+                    className="apple-input appearance-none font-semibold cursor-pointer text-black dark:text-white bg-white dark:bg-apple-card dark:[color-scheme:dark] opacity-100"
+                    style={{
+                      WebkitTextFillColor: isDarkMode ? '#ffffff' : '#000000',
+                      color: isDarkMode ? '#ffffff' : '#000000',
+                      caretColor: isDarkMode ? '#ffffff' : '#000000'
+                    }}
                     required
                   >
-                    {members.map(m => <option key={m} value={m} className="!text-black dark:!text-white bg-white dark:bg-apple-card">{m}</option>)}
+                    {members.map(m => (
+                      <option 
+                        key={m} 
+                        value={m} 
+                        className="text-black dark:text-white bg-white dark:bg-apple-card"
+                        style={{
+                          WebkitTextFillColor: isDarkMode ? '#ffffff' : '#000000',
+                          color: isDarkMode ? '#ffffff' : '#000000'
+                        }}
+                      >
+                        {m}
+                      </option>
+                    ))}
                   </select>
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-apple-textMuted">
                     <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
@@ -140,7 +159,12 @@ export default function AddExpense() {
                   name="purchase_date"
                   value={formData.purchase_date}
                   onChange={handleChange}
-                  className="apple-input font-semibold !text-black dark:!text-white bg-white dark:bg-apple-card dark:[color-scheme:dark] opacity-100"
+                  className="apple-input appearance-none font-semibold text-black dark:text-white bg-white dark:bg-apple-card dark:[color-scheme:dark] opacity-100"
+                  style={{
+                    WebkitTextFillColor: isDarkMode ? '#ffffff' : '#000000',
+                    color: isDarkMode ? '#ffffff' : '#000000',
+                    caretColor: isDarkMode ? '#ffffff' : '#000000'
+                  }}
                   required
                 />
               </div>
