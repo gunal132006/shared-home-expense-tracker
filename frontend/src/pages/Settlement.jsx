@@ -52,16 +52,16 @@ export default function Settlement() {
         </div>
       </div>
 
-      <div className="wallet-card mb-8">
-        <div className="absolute top-0 right-0 w-48 h-48 bg-white/20 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+      <div className="wallet-card mb-8 bg-apple-card">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-apple-blue/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none transition-colors duration-300"></div>
         <div className="grid grid-cols-2 gap-y-6 relative z-10">
           <div>
-            <p className="text-white/70 text-xs font-bold uppercase tracking-wider">Total House Expense</p>
-            <p className="text-2xl font-black mt-1">₹{report.totalHouseExpense.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+            <p className="text-apple-textMuted text-xs font-bold uppercase tracking-wider transition-colors duration-300">Total House Expense</p>
+            <p className="text-2xl font-black mt-1 text-apple-text transition-colors duration-300">₹{report.totalHouseExpense.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
           </div>
           <div>
-            <p className="text-white/70 text-xs font-bold uppercase tracking-wider">Per Person</p>
-            <p className="text-2xl font-black mt-1">₹{report.perPersonShare.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+            <p className="text-apple-textMuted text-xs font-bold uppercase tracking-wider transition-colors duration-300">Per Person</p>
+            <p className="text-2xl font-black mt-1 text-apple-text transition-colors duration-300">₹{report.perPersonShare.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
           </div>
         </div>
       </div>
