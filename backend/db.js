@@ -40,6 +40,15 @@ const initDB = async () => {
       );
     `);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS push_subscriptions (
+        id SERIAL PRIMARY KEY,
+        member_name VARCHAR(100) NOT NULL,
+        subscription JSONB NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     // Safely add month and year columns to support monthly history tracking
     await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS month INTEGER;`);
     await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS year INTEGER;`);

@@ -3,7 +3,17 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const db = require('./db');
+const webpush = require('web-push');
 require('dotenv').config();
+
+// Configure web-push
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    'mailto:test@test.com',
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+}
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -114,6 +124,28 @@ app.post('/api/expenses', async (req, res) => {
       "INSERT INTO expenses (item_name, amount, member_name, purchase_date, notes, month, year) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
       [item_name, parseFloat(amount), member_name, purchase_date, notes || '', month, year]
     );
+
+    // Send push notifications asynchronously
+    if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+      db.query("SELECT subscription FROM push_subscriptions WHERE member_name != $1", [member_name])
+        .then(subs => {
+          const payload = JSON.stringify({
+            title: 'Shared Home Expense Tracker',
+            body: `${member_name} added ₹${parseFloat(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })} for ${item_name}`
+          });
+          
+          subs.rows.forEach(row => {
+            webpush.sendNotification(row.subscription, payload).catch(error => {
+              console.error('Error sending notification, possible expired subscription:', error);
+              if (error.statusCode === 410 || error.statusCode === 404) {
+                db.query("DELETE FROM push_subscriptions WHERE subscription = $1", [row.subscription]).catch(console.error);
+              }
+            });
+          });
+        })
+        .catch(err => console.error('Error fetching subscriptions:', err));
+    }
+
     res.status(201).json({ success: true, id: result.rows[0].id });
   } catch (error) {
     console.error('Failed to add expense:', error);
@@ -301,6 +333,35 @@ app.get('/api/reports/dashboard/:memberId', async (req, res) => {
   } catch (error) {
     console.error('Failed to get member dashboard stats:', error);
     res.status(500).json({ error: 'Failed to get dashboard stats' });
+  }
+});
+
+// Push Notifications API
+app.get('/api/notifications/vapidPublicKey', (req, res) => {
+  res.json({ publicKey: process.env.VAPID_PUBLIC_KEY });
+});
+
+app.post('/api/notifications/subscribe', async (req, res) => {
+  const { member_name, subscription } = req.body;
+  if (!member_name || !subscription) {
+    return res.status(400).json({ error: 'Missing member_name or subscription' });
+  }
+
+  try {
+    const existing = await db.query(
+      "SELECT * FROM push_subscriptions WHERE member_name = $1 AND subscription::text = $2::text",
+      [member_name, JSON.stringify(subscription)]
+    );
+    if (existing.rows.length === 0) {
+      await db.query(
+        "INSERT INTO push_subscriptions (member_name, subscription) VALUES ($1, $2)",
+        [member_name, subscription]
+      );
+    }
+    res.status(201).json({ success: true });
+  } catch (error) {
+    console.error('Failed to save subscription:', error);
+    res.status(500).json({ error: 'Failed to save subscription' });
   }
 });
 

@@ -1,14 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { Home, Users, Moon, Info, ChevronRight, Check } from 'lucide-react';
+import { Home, Users, Moon, Info, ChevronRight, Check, Bell } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { useMember } from '../context/MemberContext';
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
 
 export default function SettingsPage() {
   const [rent, setRent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isEditingRent, setIsEditingRent] = useState(false);
   const { isDarkMode, setIsDarkMode } = useTheme();
+  const { activeMember } = useMember();
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -20,6 +34,10 @@ export default function SettingsPage() {
       }
     };
     fetchSettings();
+
+    if ('Notification' in window && Notification.permission === 'granted') {
+      setNotificationsEnabled(true);
+    }
   }, []);
 
   const handleSaveRent = async () => {
@@ -32,6 +50,42 @@ export default function SettingsPage() {
       toast.error('Failed to update rent');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleEnableNotifications = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      toast.error('Push notifications are not supported by your browser');
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        toast.error('Permission for notifications was denied');
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.ready;
+      
+      const { data } = await axios.get('/api/notifications/vapidPublicKey');
+      const convertedVapidKey = urlBase64ToUint8Array(data.publicKey);
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: convertedVapidKey
+      });
+
+      await axios.post('/api/notifications/subscribe', {
+        member_name: activeMember,
+        subscription
+      });
+
+      setNotificationsEnabled(true);
+      toast.success('Notifications enabled successfully!');
+    } catch (error) {
+      console.error('Failed to subscribe:', error);
+      toast.error('Failed to enable notifications');
     }
   };
 
@@ -99,6 +153,21 @@ export default function SettingsPage() {
               </div>
               <div className={`w-14 h-8 rounded-full flex items-center p-1 transition-colors duration-300 relative ${isDarkMode ? 'bg-apple-green' : 'bg-apple-border'}`}>
                 <div className={`w-6 h-6 bg-white rounded-full shadow-sm transition-transform duration-300 absolute ${isDarkMode ? 'translate-x-6' : 'translate-x-0'}`}></div>
+              </div>
+            </div>
+
+            <div 
+              onClick={notificationsEnabled ? null : handleEnableNotifications}
+              className={`p-4 pl-5 flex justify-between items-center border-b border-apple-border/50 transition-colors ${notificationsEnabled ? '' : 'active:bg-apple-bg/50 cursor-pointer'}`}
+            >
+              <div className="flex items-center gap-4">
+                <div className="bg-[#FF9500] rounded-xl p-2.5 shadow-sm transition-colors">
+                  <Bell size={20} className="text-white transition-colors" strokeWidth={2.5} />
+                </div>
+                <span className="font-bold text-apple-text text-lg tracking-tight">Notifications</span>
+              </div>
+              <div className={`w-14 h-8 rounded-full flex items-center p-1 transition-colors duration-300 relative ${notificationsEnabled ? 'bg-apple-green' : 'bg-apple-border'}`}>
+                <div className={`w-6 h-6 bg-white rounded-full shadow-sm transition-transform duration-300 absolute ${notificationsEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
               </div>
             </div>
             
