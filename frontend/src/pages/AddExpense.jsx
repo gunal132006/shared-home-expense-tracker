@@ -96,7 +96,12 @@ export default function AddExpense() {
                 value={formData.amount}
                 onChange={handleChange}
                 placeholder="0.00"
-                className="w-full bg-transparent text-5xl font-black !text-black dark:!text-white placeholder:!text-gray-400 dark:placeholder:!text-gray-600 focus:outline-none opacity-100"
+                className="w-full bg-transparent text-5xl font-black text-black dark:text-white placeholder:!text-gray-400 dark:placeholder:!text-gray-600 focus:outline-none opacity-100"
+                style={{
+                  WebkitTextFillColor: isDarkMode ? '#ffffff' : '#000000',
+                  color: isDarkMode ? '#ffffff' : '#000000',
+                  caretColor: isDarkMode ? '#ffffff' : '#000000'
+                }}
                 required
               />
             </div>
