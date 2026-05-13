@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Home, Users, Moon, Info, ChevronRight, Check, Bell } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
@@ -15,17 +16,21 @@ export default function SettingsPage() {
   const { activeMember } = useMember();
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
-  useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        const res = await axios.get('/api/settings');
-        setRent(res.data.monthly_rent);
-      } catch (error) {
-        toast.error('Failed to load settings');
-      }
-    };
-    fetchSettings();
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const res = await axios.get('/api/settings');
+      return res.data;
+    }
+  });
 
+  useEffect(() => {
+    if (settings && !rent) {
+      setRent(settings.monthly_rent);
+    }
+  }, [settings]);
+
+  useEffect(() => {
     const checkPushState = async () => {
       if ('serviceWorker' in navigator && 'PushManager' in window) {
         try {
@@ -40,11 +45,16 @@ export default function SettingsPage() {
     checkPushState();
   }, []);
 
+  const queryClient = useQueryClient();
+
   const handleSaveRent = async () => {
     setIsSaving(true);
     try {
       await axios.put('/api/settings', { monthly_rent: parseFloat(rent) });
       toast.success('Rent updated successfully');
+      queryClient.invalidateQueries(['settings']);
+      queryClient.invalidateQueries(['dashboard']);
+      queryClient.invalidateQueries(['settlement']);
       setIsEditingRent(false);
     } catch (error) {
       toast.error('Failed to update rent');

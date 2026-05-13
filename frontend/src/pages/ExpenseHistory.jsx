@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Search, Filter, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -9,41 +10,35 @@ import { useMonth } from '../context/MonthContext';
 export default function ExpenseHistory() {
   const { activeMember } = useMember();
   const { activeMonth, activeYear } = useMonth();
-  const [expenses, setExpenses] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterMember, setFilterMember] = useState('All');
-  const [members, setMembers] = useState([]);
+  const queryClient = useQueryClient();
 
-  const fetchExpenses = async () => {
-    try {
+  const { data: expenses = [], isLoading: loading } = useQuery({
+    queryKey: ['expenses', activeMonth, activeYear],
+    queryFn: async () => {
       const res = await axios.get(`/api/expenses?month=${activeMonth}&year=${activeYear}`);
-      setExpenses(res.data);
-    } catch (error) {
-      toast.error('Failed to fetch expenses');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return res.data;
+    },
+    enabled: !!activeMonth && !!activeYear
+  });
 
-  const fetchMembers = async () => {
-    try {
+  const { data: members = [] } = useQuery({
+    queryKey: ['members'],
+    queryFn: async () => {
       const res = await axios.get('/api/members');
-      setMembers(res.data);
-    } catch (error) {}
-  };
-
-  useEffect(() => {
-    fetchExpenses();
-    fetchMembers();
-  }, [activeMonth, activeYear]);
+      return res.data;
+    }
+  });
 
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this expense?')) {
       try {
         await axios.delete(`/api/expenses/${id}`);
         toast.success('Expense deleted');
-        fetchExpenses();
+        queryClient.invalidateQueries(['expenses']);
+        queryClient.invalidateQueries(['dashboard']);
+        queryClient.invalidateQueries(['settlement']);
       } catch (error) {
         toast.error('Failed to delete expense');
       }

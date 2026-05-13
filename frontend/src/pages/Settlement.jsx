@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import axios from 'axios';
+import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -9,22 +10,15 @@ import { useMonth } from '../context/MonthContext';
 export default function Settlement() {
   const { activeMember } = useMember();
   const { activeMonth, activeYear } = useMonth();
-  const [report, setReport] = useState(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchSettlement = async () => {
-      try {
-        const res = await axios.get(`/api/reports/settlement?month=${activeMonth}&year=${activeYear}`);
-        setReport(res.data);
-      } catch (error) {
-        toast.error('Failed to generate settlement report');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchSettlement();
-  }, [activeMonth, activeYear]);
+  const { data: report, isLoading: loading } = useQuery({
+    queryKey: ['settlement', activeMonth, activeYear],
+    queryFn: async () => {
+      const res = await axios.get(`/api/reports/settlement?month=${activeMonth}&year=${activeYear}`);
+      return res.data;
+    },
+    enabled: !!activeMonth && !!activeYear
+  });
 
   if (loading || !report) {
     return (

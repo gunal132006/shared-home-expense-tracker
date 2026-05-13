@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const db = require('./db');
 const webpush = require('web-push');
+const compression = require('compression');
 require('dotenv').config();
 
 // Configure web-push
@@ -20,6 +21,7 @@ const port = process.env.PORT || 5000;
 
 // Security Middlewares
 app.use(helmet());
+app.use(compression());
 app.use(cors({
   origin: function (origin, callback) {
     // Safely reflect origin to support dynamic Vercel preview domains
@@ -90,16 +92,19 @@ app.put('/api/settings', async (req, res) => {
 
 // Expenses API
 app.get('/api/expenses', async (req, res) => {
-  const { month, year } = req.query;
+  const { month, year, limit, offset } = req.query;
+  const limitClause = limit ? `LIMIT ${parseInt(limit)}` : '';
+  const offsetClause = offset ? `OFFSET ${parseInt(offset)}` : '';
+
   try {
     let result;
     if (month && year) {
       result = await db.query(
-        "SELECT * FROM expenses WHERE month = $1 AND year = $2 ORDER BY purchase_date DESC",
+        `SELECT * FROM expenses WHERE month = $1 AND year = $2 ORDER BY purchase_date DESC ${limitClause} ${offsetClause}`,
         [parseInt(month), parseInt(year)]
       );
     } else {
-      result = await db.query("SELECT * FROM expenses ORDER BY purchase_date DESC");
+      result = await db.query(`SELECT * FROM expenses ORDER BY purchase_date DESC ${limitClause} ${offsetClause}`);
     }
     res.json(result.rows);
   } catch (error) {

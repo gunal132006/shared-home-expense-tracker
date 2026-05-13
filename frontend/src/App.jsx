@@ -1,16 +1,29 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Home, Plus, List, ArrowLeftRight, Settings } from 'lucide-react';
-import Dashboard from './pages/Dashboard';
-import AddExpense from './pages/AddExpense';
-import ExpenseHistory from './pages/ExpenseHistory';
-import Settlement from './pages/Settlement';
-import SettingsPage from './pages/SettingsPage';
 import { Toaster } from 'react-hot-toast';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemberProvider, useMember } from './context/MemberContext';
 import { MonthProvider } from './context/MonthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { checkAndRecoverSubscription } from './utils/push';
+
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const AddExpense = lazy(() => import('./pages/AddExpense'));
+const ExpenseHistory = lazy(() => import('./pages/ExpenseHistory'));
+const Settlement = lazy(() => import('./pages/Settlement'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      cacheTime: 1000 * 60 * 30, // 30 minutes
+      refetchOnWindowFocus: true,
+      retry: 1
+    },
+  },
+});
 
 function PushRecovery() {
   const { activeMember } = useMember();
@@ -103,32 +116,36 @@ function BottomNav() {
 
 function App() {
   return (
-    <ThemeProvider>
-      <MemberProvider>
-        <PushRecovery />
-        <MonthProvider>
-          <Router>
-            <div className="min-h-[100dvh] max-w-md mx-auto bg-apple-bg relative selection:bg-apple-blue/20 flex flex-col shadow-2xl overflow-x-hidden transition-colors duration-300">
-              <Toaster position="top-center" toastOptions={{ 
-                className: '!bg-[#1D1D1F] dark:!bg-white dark:!text-[#1D1D1F] !text-white !rounded-full !px-6 !py-3 font-semibold text-sm backdrop-blur-md border border-white/10 dark:border-black/10 shadow-apple-lg',
-                duration: 3000
-              }} />
-              <TopMemberSelector />
-              <div className="flex-1 overflow-y-auto pb-32">
-                <Routes>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/add" element={<AddExpense />} />
-                  <Route path="/history" element={<ExpenseHistory />} />
-                  <Route path="/settlement" element={<Settlement />} />
-                  <Route path="/settings" element={<SettingsPage />} />
-                </Routes>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <MemberProvider>
+          <PushRecovery />
+          <MonthProvider>
+            <Router>
+              <div className="min-h-[100dvh] max-w-md mx-auto bg-apple-bg relative selection:bg-apple-blue/20 flex flex-col shadow-2xl overflow-x-hidden transition-colors duration-300">
+                <Toaster position="top-center" toastOptions={{ 
+                  className: '!bg-[#1D1D1F] dark:!bg-white dark:!text-[#1D1D1F] !text-white !rounded-full !px-6 !py-3 font-semibold text-sm backdrop-blur-md border border-white/10 dark:border-black/10 shadow-apple-lg',
+                  duration: 3000
+                }} />
+                <TopMemberSelector />
+                <div className="flex-1 overflow-y-auto pb-32">
+                  <Suspense fallback={null}>
+                    <Routes>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/add" element={<AddExpense />} />
+                      <Route path="/history" element={<ExpenseHistory />} />
+                      <Route path="/settlement" element={<Settlement />} />
+                      <Route path="/settings" element={<SettingsPage />} />
+                    </Routes>
+                  </Suspense>
+                </div>
+                <BottomNav />
               </div>
-              <BottomNav />
-            </div>
-          </Router>
-        </MonthProvider>
-      </MemberProvider>
-    </ThemeProvider>
+            </Router>
+          </MonthProvider>
+        </MemberProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 

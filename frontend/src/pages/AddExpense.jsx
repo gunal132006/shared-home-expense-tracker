@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -46,6 +47,8 @@ export default function AddExpense() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const queryClient = useQueryClient();
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.item_name || !formData.amount || !formData.member_name) {
@@ -57,6 +60,9 @@ export default function AddExpense() {
     try {
       await axios.post('/api/expenses', formData);
       toast.success('Expense Added');
+      queryClient.invalidateQueries(['expenses']);
+      queryClient.invalidateQueries(['dashboard']);
+      queryClient.invalidateQueries(['settlement']);
       navigate(-1);
     } catch (error) {
       toast.error('Failed to add expense');

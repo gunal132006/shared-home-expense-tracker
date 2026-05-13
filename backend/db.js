@@ -65,6 +65,10 @@ const initDB = async () => {
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_member_name ON expenses(member_name);`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_purchase_date ON expenses(purchase_date);`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_month_year ON expenses(month, year);`);
+    
+    // New performance optimizations indexes
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_member_month_year ON expenses(member_name, month, year);`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_push_member_name ON push_subscriptions(member_name);`);
 
     console.log('PostgreSQL Database initialized successfully.');
   } catch (error) {

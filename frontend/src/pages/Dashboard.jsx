@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import axios from 'axios';
+import { useQuery } from '@tanstack/react-query';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { ArrowUpRight, TrendingUp, ChevronRight, ChevronLeft, Activity, Wallet } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -12,23 +13,15 @@ const COLORS = ['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#AF52DE', '#5856D6'
 export default function Dashboard() {
   const { activeMember } = useMember();
   const { activeMonth, setActiveMonth, activeYear, setActiveYear } = useMonth();
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      setLoading(true);
-      try {
-        const response = await axios.get(`/api/reports/dashboard/${activeMember}?month=${activeMonth}&year=${activeYear}`);
-        setStats(response.data);
-      } catch (error) {
-        console.error('Failed to fetch stats', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchStats();
-  }, [activeMember, activeMonth, activeYear]);
+  const { data: stats, isLoading: loading } = useQuery({
+    queryKey: ['dashboard', activeMember, activeMonth, activeYear],
+    queryFn: async () => {
+      const response = await axios.get(`/api/reports/dashboard/${activeMember}?month=${activeMonth}&year=${activeYear}`);
+      return response.data;
+    },
+    enabled: !!activeMember && !!activeMonth && !!activeYear
+  });
 
   if (loading || !stats) {
     return (
