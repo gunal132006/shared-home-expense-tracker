@@ -10,6 +10,17 @@ import { Toaster } from 'react-hot-toast';
 import { MemberProvider, useMember } from './context/MemberContext';
 import { MonthProvider } from './context/MonthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { checkAndRecoverSubscription } from './utils/push';
+
+function PushRecovery() {
+  const { activeMember } = useMember();
+  useEffect(() => {
+    if (activeMember) {
+      checkAndRecoverSubscription(activeMember).catch(console.error);
+    }
+  }, [activeMember]);
+  return null;
+}
 
 function TopMemberSelector() {
   const location = useLocation();
@@ -94,6 +105,7 @@ function App() {
   return (
     <ThemeProvider>
       <MemberProvider>
+        <PushRecovery />
         <MonthProvider>
           <Router>
             <div className="min-h-[100dvh] max-w-md mx-auto bg-apple-bg relative selection:bg-apple-blue/20 flex flex-col shadow-2xl overflow-x-hidden transition-colors duration-300">

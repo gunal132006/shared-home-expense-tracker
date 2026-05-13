@@ -365,6 +365,24 @@ app.post('/api/notifications/subscribe', async (req, res) => {
   }
 });
 
+app.post('/api/notifications/unsubscribe', async (req, res) => {
+  const { member_name, endpoint } = req.body;
+  if (!member_name || !endpoint) {
+    return res.status(400).json({ error: 'Missing member_name or endpoint' });
+  }
+
+  try {
+    await db.query(
+      "DELETE FROM push_subscriptions WHERE member_name = $1 AND subscription::text LIKE $2",
+      [member_name, `%${endpoint}%`]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Failed to unsubscribe:', error);
+    res.status(500).json({ error: 'Failed to unsubscribe' });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Production Backend running on port ${port}`);
 });

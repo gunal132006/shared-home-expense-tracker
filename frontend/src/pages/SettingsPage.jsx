@@ -5,16 +5,7 @@ import { Home, Users, Moon, Info, ChevronRight, Check, Bell } from 'lucide-react
 import { useTheme } from '../context/ThemeContext';
 import { useMember } from '../context/MemberContext';
 
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
+import { unsubscribePush, urlBase64ToUint8Array } from '../utils/push';
 
 export default function SettingsPage() {
   const [rent, setRent] = useState('');
@@ -35,9 +26,18 @@ export default function SettingsPage() {
     };
     fetchSettings();
 
-    if ('Notification' in window && Notification.permission === 'granted') {
-      setNotificationsEnabled(true);
-    }
+    const checkPushState = async () => {
+      if ('serviceWorker' in navigator && 'PushManager' in window) {
+        try {
+          const registration = await navigator.serviceWorker.ready;
+          const subscription = await registration.pushManager.getSubscription();
+          setNotificationsEnabled(!!subscription);
+        } catch (e) {
+          console.error('[Push] Error checking initial state:', e);
+        }
+      }
+    };
+    checkPushState();
   }, []);
 
   const handleSaveRent = async () => {
@@ -53,9 +53,21 @@ export default function SettingsPage() {
     }
   };
 
-  const handleEnableNotifications = async () => {
+  const handleToggleNotifications = async () => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       toast.error('Push notifications are not supported by your browser');
+      return;
+    }
+
+    if (notificationsEnabled) {
+      // Disable notifications
+      const success = await unsubscribePush(activeMember);
+      if (success) {
+        setNotificationsEnabled(false);
+        toast.success('Notifications disabled successfully');
+      } else {
+        toast.error('Failed to disable notifications');
+      }
       return;
     }
 
@@ -157,8 +169,8 @@ export default function SettingsPage() {
             </div>
 
             <div 
-              onClick={notificationsEnabled ? null : handleEnableNotifications}
-              className={`p-4 pl-5 flex justify-between items-center border-b border-apple-border/50 transition-colors ${notificationsEnabled ? '' : 'active:bg-apple-bg/50 cursor-pointer'}`}
+              onClick={handleToggleNotifications}
+              className={`p-4 pl-5 flex justify-between items-center border-b border-apple-border/50 transition-colors cursor-pointer active:bg-apple-bg/50`}
             >
               <div className="flex items-center gap-4">
                 <div className="bg-[#FF9500] rounded-xl p-2.5 shadow-sm transition-colors">
