@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { X } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { triggerHaptic } from '../utils/haptics';
 
 export default function AddExpense() {
   const navigate = useNavigate();
@@ -52,6 +53,7 @@ export default function AddExpense() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.item_name || !formData.amount || !formData.member_name) {
+      triggerHaptic('error');
       toast.error('Please fill required fields');
       return;
     }
@@ -60,11 +62,13 @@ export default function AddExpense() {
     try {
       await axios.post('/api/expenses', formData);
       toast.success('Expense Added');
+      triggerHaptic('success');
       queryClient.invalidateQueries(['expenses']);
       queryClient.invalidateQueries(['dashboard']);
       queryClient.invalidateQueries(['settlement']);
       navigate(-1);
     } catch (error) {
+      triggerHaptic('error');
       toast.error('Failed to add expense');
     } finally {
       setIsSubmitting(false);
@@ -77,7 +81,10 @@ export default function AddExpense() {
       <div className="flex items-center justify-between p-5 pt-12 pb-4 bg-white/80 dark:bg-apple-bg/80 backdrop-blur-xl border-b border-apple-border">
         <button 
           type="button" 
-          onClick={() => navigate(-1)}
+          onClick={() => {
+            triggerHaptic('light');
+            navigate(-1);
+          }}
           className="h-10 w-10 bg-apple-bg rounded-full flex items-center justify-center text-apple-text active:scale-95 transition-transform"
         >
           <X size={20} strokeWidth={3} />

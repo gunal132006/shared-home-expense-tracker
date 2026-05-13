@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useMember } from '../context/MemberContext';
 import { useMonth } from '../context/MonthContext';
+import AnimatedNumber from '../components/AnimatedNumber';
 
 const COLORS = ['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#AF52DE', '#5856D6', '#FF2D55'];
 
@@ -87,7 +88,7 @@ export default function Dashboard() {
               {owes ? '-' : isOwed ? '+' : ''}₹
             </span>
             <h2 className="text-5xl font-black tracking-tighter">
-              {Math.abs(stats.memberBalance).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              <AnimatedNumber value={Math.abs(stats.memberBalance)} />
             </h2>
           </div>
           
@@ -98,11 +99,11 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 gap-4 mt-8 pt-6 border-t border-white/20">
             <div>
               <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Total Contributed</p>
-              <p className="font-bold mt-1 text-lg">₹{stats.memberTotalSpent.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+              <p className="font-bold mt-1 text-lg"><AnimatedNumber value={stats.memberTotalSpent} prefix="₹" /></p>
             </div>
             <div>
               <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Your Equal Share</p>
-              <p className="font-bold mt-1 text-lg">₹{stats.perPersonShare.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+              <p className="font-bold mt-1 text-lg"><AnimatedNumber value={stats.perPersonShare} prefix="₹" /></p>
             </div>
           </div>
         </div>
@@ -112,12 +113,12 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 gap-4">
         <div className="apple-card !p-4 flex flex-col justify-center items-center text-center">
           <p className="text-xs font-bold text-apple-textMuted uppercase tracking-widest mb-1">House Total</p>
-          <p className="text-xl font-black text-apple-text">₹{stats.totalSharedExpense.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+          <p className="text-xl font-black text-apple-text"><AnimatedNumber value={stats.totalSharedExpense} prefix="₹" /></p>
         </div>
         <div className="apple-card !p-4 flex flex-col justify-center items-center text-center">
           <p className="text-xs font-bold text-apple-textMuted uppercase tracking-widest mb-1">Your Contribution</p>
           <div className="flex items-end gap-1">
-            <p className="text-xl font-black text-apple-text">{stats.contributionPercentage}</p>
+            <p className="text-xl font-black text-apple-text"><AnimatedNumber value={parseFloat(stats.contributionPercentage)} maxFractionDigits={1} /></p>
             <p className="text-sm font-bold text-apple-textMuted pb-[3px]">%</p>
           </div>
         </div>
@@ -164,7 +165,7 @@ export default function Dashboard() {
           {stats.memberSpending.some(m => m.amount > 0) && (
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <span className="text-xs font-bold text-apple-textMuted uppercase tracking-widest">Total</span>
-              <span className="text-xl font-black text-apple-text">₹{stats.totalSharedExpense.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+              <span className="text-xl font-black text-apple-text"><AnimatedNumber value={stats.totalSharedExpense} prefix="₹" /></span>
             </div>
           )}
         </div>

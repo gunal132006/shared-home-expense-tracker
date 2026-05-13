@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { useMember } from '../context/MemberContext';
 import { useMonth } from '../context/MonthContext';
+import AnimatedNumber from '../components/AnimatedNumber';
 
 export default function Settlement() {
   const { activeMember } = useMember();
@@ -51,11 +52,11 @@ export default function Settlement() {
         <div className="grid grid-cols-2 gap-y-6 relative z-10">
           <div>
             <p className="text-apple-textMuted text-xs font-bold uppercase tracking-wider transition-colors duration-300">Total House Expense</p>
-            <p className="text-2xl font-black mt-1 text-apple-text transition-colors duration-300">₹{report.totalHouseExpense.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+            <p className="text-2xl font-black mt-1 text-apple-text transition-colors duration-300"><AnimatedNumber value={report.totalHouseExpense} prefix="₹" /></p>
           </div>
           <div>
             <p className="text-apple-textMuted text-xs font-bold uppercase tracking-wider transition-colors duration-300">Per Person</p>
-            <p className="text-2xl font-black mt-1 text-apple-text transition-colors duration-300">₹{report.perPersonShare.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+            <p className="text-2xl font-black mt-1 text-apple-text transition-colors duration-300"><AnimatedNumber value={report.perPersonShare} prefix="₹" /></p>
           </div>
         </div>
       </div>

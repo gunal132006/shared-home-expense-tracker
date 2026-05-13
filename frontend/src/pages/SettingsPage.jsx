@@ -7,6 +7,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useMember } from '../context/MemberContext';
 
 import { unsubscribePush, urlBase64ToUint8Array } from '../utils/push';
+import { triggerHaptic } from '../utils/haptics';
 
 export default function SettingsPage() {
   const [rent, setRent] = useState('');
@@ -52,11 +53,13 @@ export default function SettingsPage() {
     try {
       await axios.put('/api/settings', { monthly_rent: parseFloat(rent) });
       toast.success('Rent updated successfully');
+      triggerHaptic('success');
       queryClient.invalidateQueries(['settings']);
       queryClient.invalidateQueries(['dashboard']);
       queryClient.invalidateQueries(['settlement']);
       setIsEditingRent(false);
     } catch (error) {
+      triggerHaptic('error');
       toast.error('Failed to update rent');
     } finally {
       setIsSaving(false);
@@ -64,50 +67,47 @@ export default function SettingsPage() {
   };
 
   const handleToggleNotifications = async () => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      toast.error('Push notifications are not supported by your browser');
-      return;
-    }
-
-    if (notificationsEnabled) {
-      // Disable notifications
-      const success = await unsubscribePush(activeMember);
-      if (success) {
-        setNotificationsEnabled(false);
-        toast.success('Notifications disabled successfully');
-      } else {
-        toast.error('Failed to disable notifications');
-      }
-      return;
-    }
-
     try {
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        toast.error('Permission for notifications was denied');
-        return;
+      if (notificationsEnabled) {
+        // If ON, user wants to turn OFF -> Unsubscribe
+        await unsubscribePush(activeMember);
+        setNotificationsEnabled(false);
+        triggerHaptic('light');
+        toast.success('Notifications disabled');
+      } else {
+        // If OFF, user wants to turn ON -> Subscribe
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          const registration = await navigator.serviceWorker.ready;
+          const publicVapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+          
+          if (!publicVapidKey) {
+            triggerHaptic('error');
+            throw new Error('VAPID public key not found in env');
+          }
+
+          const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+          });
+
+          await axios.post('/api/notifications/subscribe', {
+            subscription,
+            memberName: activeMember
+          });
+
+          setNotificationsEnabled(true);
+          triggerHaptic('success');
+          toast.success('Notifications enabled!');
+        } else {
+          triggerHaptic('error');
+          toast.error('Notification permission denied.');
+        }
       }
-
-      const registration = await navigator.serviceWorker.ready;
-      
-      const { data } = await axios.get('/api/notifications/vapidPublicKey');
-      const convertedVapidKey = urlBase64ToUint8Array(data.publicKey);
-
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: convertedVapidKey
-      });
-
-      await axios.post('/api/notifications/subscribe', {
-        member_name: activeMember,
-        subscription
-      });
-
-      setNotificationsEnabled(true);
-      toast.success('Notifications enabled successfully!');
     } catch (error) {
-      console.error('Failed to subscribe:', error);
-      toast.error('Failed to enable notifications');
+      console.error('Push toggle error:', error);
+      triggerHaptic('error');
+      toast.error('Failed to toggle notifications.');
     }
   };
 
@@ -164,7 +164,10 @@ export default function SettingsPage() {
           <div className="bg-apple-card rounded-[2rem] shadow-apple overflow-hidden transition-colors duration-300">
             
             <div 
-              onClick={() => setIsDarkMode(!isDarkMode)}
+              onClick={() => {
+                triggerHaptic('light');
+                setIsDarkMode(!isDarkMode);
+              }}
               className="p-4 pl-5 flex justify-between items-center border-b border-apple-border/50 active:bg-apple-bg/50 transition-colors cursor-pointer"
             >
               <div className="flex items-center gap-4">
