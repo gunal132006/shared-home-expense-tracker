@@ -139,14 +139,30 @@ app.post('/api/expenses', async (req, res) => {
             body: `${member_name} added ₹${parseFloat(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })} for ${item_name}`
           });
           
+          const uniqueEndpoints = new Set();
+          let attemptCount = 0;
+
           subs.rows.forEach(row => {
-            webpush.sendNotification(row.subscription, payload).catch(error => {
+            const sub = typeof row.subscription === 'string' ? JSON.parse(row.subscription) : row.subscription;
+            if (!sub || !sub.endpoint) return;
+
+            if (uniqueEndpoints.has(sub.endpoint)) {
+              console.log('[PUSH] Skipped duplicate endpoint during send:', sub.endpoint.substring(0, 40) + '...');
+              return;
+            }
+            uniqueEndpoints.add(sub.endpoint);
+            attemptCount++;
+
+            webpush.sendNotification(sub, payload).catch(error => {
               console.error('Error sending notification, possible expired subscription:', error);
               if (error.statusCode === 410 || error.statusCode === 404) {
-                db.query("DELETE FROM push_subscriptions WHERE subscription = $1", [row.subscription]).catch(console.error);
+                db.query("DELETE FROM push_subscriptions WHERE subscription->>'endpoint' = $1", [sub.endpoint])
+                  .then(() => console.log('[PUSH] Cleaned up expired subscription:', sub.endpoint.substring(0, 40) + '...'))
+                  .catch(console.error);
               }
             });
           });
+          console.log(`[PUSH] Triggered notifications for ${attemptCount} unique devices (Excluded ${subs.rows.length - attemptCount} duplicates).`);
         })
         .catch(err => console.error('Error fetching subscriptions:', err));
     }
@@ -353,16 +369,28 @@ app.post('/api/notifications/subscribe', async (req, res) => {
   }
 
   try {
-    const existing = await db.query(
-      "SELECT * FROM push_subscriptions WHERE member_name = $1 AND subscription::text = $2::text",
-      [member_name, JSON.stringify(subscription)]
-    );
-    if (existing.rows.length === 0) {
-      await db.query(
-        "INSERT INTO push_subscriptions (member_name, subscription) VALUES ($1, $2)",
-        [member_name, subscription]
-      );
+    const endpoint = subscription.endpoint;
+    if (!endpoint) {
+      return res.status(400).json({ error: 'Invalid subscription endpoint' });
     }
+
+    // Delete any existing subscription with the same endpoint to ensure uniqueness
+    // This handles both re-subscribing on the same device and switching members on same device
+    const delResult = await db.query(
+      "DELETE FROM push_subscriptions WHERE subscription->>'endpoint' = $1",
+      [endpoint]
+    );
+    
+    if (delResult.rowCount > 0) {
+      console.log(`[PUSH] Removed ${delResult.rowCount} existing subscription(s) for endpoint: ${endpoint.substring(0, 40)}...`);
+    }
+
+    await db.query(
+      "INSERT INTO push_subscriptions (member_name, subscription) VALUES ($1, $2)",
+      [member_name, subscription]
+    );
+    
+    console.log(`[PUSH] New subscription saved for ${member_name}`);
     res.status(201).json({ success: true });
   } catch (error) {
     console.error('Failed to save subscription:', error);
@@ -377,10 +405,11 @@ app.post('/api/notifications/unsubscribe', async (req, res) => {
   }
 
   try {
-    await db.query(
-      "DELETE FROM push_subscriptions WHERE member_name = $1 AND subscription::text LIKE $2",
-      [member_name, `%${endpoint}%`]
+    const delResult = await db.query(
+      "DELETE FROM push_subscriptions WHERE member_name = $1 AND subscription->>'endpoint' = $2",
+      [member_name, endpoint]
     );
+    console.log(`[PUSH] Unsubscribed ${member_name}. Rows removed: ${delResult.rowCount}`);
     res.json({ success: true });
   } catch (error) {
     console.error('Failed to unsubscribe:', error);

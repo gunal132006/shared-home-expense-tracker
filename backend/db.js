@@ -70,6 +70,15 @@ const initDB = async () => {
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_member_month_year ON expenses(member_name, month, year);`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_push_member_name ON push_subscriptions(member_name);`);
 
+    // Deduplicate existing push_subscriptions based on endpoint
+    const cleanupResult = await pool.query(`
+      DELETE FROM push_subscriptions a USING push_subscriptions b
+      WHERE a.id > b.id AND a.subscription->>'endpoint' = b.subscription->>'endpoint';
+    `);
+    if (cleanupResult.rowCount > 0) {
+      console.log(`[PUSH] Cleaned up ${cleanupResult.rowCount} duplicate subscriptions from database.`);
+    }
+
     console.log('PostgreSQL Database initialized successfully.');
   } catch (error) {
     console.error('Database initialization failed:', error);
