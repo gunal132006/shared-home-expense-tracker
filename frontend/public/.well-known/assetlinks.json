@@ -1,0 +1,12 @@
+[
+{
+"relation": ["delegate_permission/common.handle_all_urls"],
+"target": {
+"namespace": "android_app",
+"package_name": "com.homesplit.app",
+"sha256_cert_fingerprints": [
+"F4:4A:31:7D:49:B2:CE:0A:DA:81:C5:07:79:53:2D:E1:B4:8C:59:4E:D9:93:6A:DC:6B:43:89:85:C1:66:6C:43"
+]
+}
+}
+]
