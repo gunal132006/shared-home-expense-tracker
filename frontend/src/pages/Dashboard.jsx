@@ -1,10 +1,11 @@
 
 import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { ArrowUpRight, ChevronRight, ChevronLeft, Wallet } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { motion } from 'framer-motion';
 import { useMember } from '../context/MemberContext';
 import { useMonth } from '../context/MonthContext';
 import AnimatedNumber from '../components/AnimatedNumber';
@@ -16,6 +17,7 @@ export default function Dashboard() {
   const { activeMember } = useMember();
   const { activeMonth, setActiveMonth, activeYear, setActiveYear } = useMonth();
   const navigate = useNavigate();
+
 
   const { data: stats, isLoading: loading } = useQuery({
     queryKey: ['dashboard', activeMember, activeMonth, activeYear],
@@ -38,6 +40,8 @@ export default function Dashboard() {
 
   const isOwed = stats.memberBalance > 0.01;
   const owes = stats.memberBalance < -0.01;
+  
+  const maxAmount = stats ? Math.max(...stats.memberSpending.map(m => parseFloat(m.amount))) : 0;
 
   const handlePrevMonth = () => {
     if (activeMonth === 1) {
@@ -130,50 +134,90 @@ export default function Dashboard() {
       <div>
         <h3 className="text-xl font-bold text-apple-text tracking-tight mb-4">House Spending Split</h3>
         <div 
-          className="apple-card flex items-center justify-center h-56 relative cursor-pointer active:scale-[0.98] transition-transform"
+          className="apple-card flex flex-col p-4 relative cursor-pointer active:scale-[0.98] transition-transform"
           onClick={() => {
             triggerHaptic('medium');
             navigate('/analytics');
           }}
         >
           {stats.memberSpending.some(m => m.amount > 0) ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={stats.memberSpending.filter(m => m.amount > 0)}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={65}
-                  outerRadius={85}
-                  paddingAngle={6}
-                  dataKey="amount"
-                  stroke="none"
-                  cornerRadius={8}
-                >
-                  {stats.memberSpending.filter(m => m.amount > 0).map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 8px 30px rgba(0,0,0,0.12)', padding: '12px' }}
-                  itemStyle={{ fontWeight: 'bold' }}
-                  formatter={(value) => `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            <>
+              <div className="h-40 w-full relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={stats.memberSpending.filter(m => m.amount > 0)}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={65}
+                      paddingAngle={4}
+                      dataKey="amount"
+                      stroke="none"
+                      cornerRadius={6}
+                      isAnimationActive={true}
+                      animationBegin={100}
+                      animationDuration={1000}
+                    >
+                      {stats.memberSpending.filter(m => m.amount > 0).map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-xs font-bold text-apple-textMuted uppercase tracking-widest">Total</span>
+                  <span className="text-xl font-black text-apple-text"><AnimatedNumber value={stats.totalSharedExpense} prefix="₹" /></span>
+                </div>
+              </div>
+              
+              <div className="w-full grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-apple-border/50">
+                {stats.memberSpending.filter(m => m.amount > 0).map((member, index) => {
+                  const isHighest = parseFloat(member.amount) === maxAmount && maxAmount > 0;
+                  const amount = parseFloat(member.amount);
+                  const percentage = stats.totalSharedExpense > 0 ? Math.round((amount / stats.totalSharedExpense) * 100) : 0;
+                  
+                  return (
+                    <motion.div 
+                      key={member.name} 
+                      initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      transition={{ delay: 0.5 + index * 0.1, duration: 0.4 }}
+                      className={`flex flex-col p-2.5 rounded-2xl border transition-colors ${
+                        isHighest 
+                          ? 'bg-apple-blue/10 border-apple-blue/20' 
+                          : 'bg-apple-bg/50 border-apple-border/40'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <div className={`shrink-0 rounded-full ${isHighest ? 'w-2.5 h-2.5' : 'w-2 h-2'}`} style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
+                          <span className={`text-apple-text text-[11px] truncate ${isHighest ? 'font-bold' : 'font-semibold opacity-90'}`}>
+                            {member.name}
+                          </span>
+                        </div>
+                        {isHighest && <span className="shrink-0 text-[8px] bg-apple-blue/20 text-apple-blue font-black px-1.5 py-0.5 rounded-[4px] uppercase tracking-wider">Top</span>}
+                      </div>
+                      
+                      <div className="flex items-end justify-between">
+                        <span className={`text-apple-text tracking-tight ${isHighest ? 'font-black text-sm' : 'font-bold text-[13px] opacity-90'}`}>
+                          <AnimatedNumber value={member.amount} prefix="₹" />
+                        </span>
+                        <span className="text-[10px] font-bold text-apple-textMuted bg-apple-card/60 border border-apple-border/50 px-1.5 py-0.5 rounded-md">
+                          {percentage}%
+                        </span>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </>
           ) : (
-            <div className="text-center">
+            <div className="text-center py-8">
               <div className="w-16 h-16 bg-apple-bg rounded-full flex items-center justify-center mx-auto mb-3">
                 <ArrowUpRight size={24} className="text-apple-textMuted" />
               </div>
               <p className="text-apple-textMuted font-medium">No expenses yet</p>
-            </div>
-          )}
-          
-          {stats.memberSpending.some(m => m.amount > 0) && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-xs font-bold text-apple-textMuted uppercase tracking-widest">Total</span>
-              <span className="text-xl font-black text-apple-text"><AnimatedNumber value={stats.totalSharedExpense} prefix="₹" /></span>
             </div>
           )}
         </div>

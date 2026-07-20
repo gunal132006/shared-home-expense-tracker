@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Search, Filter, Trash2 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useMember } from '../context/MemberContext';
 import { useMonth } from '../context/MonthContext';
@@ -10,8 +11,9 @@ import { useMonth } from '../context/MonthContext';
 export default function ExpenseHistory() {
   const { activeMember } = useMember();
   const { activeMonth, activeYear } = useMonth();
+  const location = useLocation();
   const [search, setSearch] = useState('');
-  const [filterMember, setFilterMember] = useState('All');
+  const [filterMember, setFilterMember] = useState(location.state?.filterMember || 'All');
   const queryClient = useQueryClient();
 
   const { data: expenses = [], isLoading: loading } = useQuery({
