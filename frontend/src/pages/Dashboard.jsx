@@ -1,19 +1,21 @@
-import React from 'react';
+
 import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { ArrowUpRight, TrendingUp, ChevronRight, ChevronLeft, Activity, Wallet } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { ArrowUpRight, ChevronRight, ChevronLeft, Wallet } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useMember } from '../context/MemberContext';
 import { useMonth } from '../context/MonthContext';
 import AnimatedNumber from '../components/AnimatedNumber';
+import { triggerHaptic } from '../utils/haptics';
 
 const COLORS = ['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#AF52DE', '#5856D6', '#FF2D55'];
 
 export default function Dashboard() {
   const { activeMember } = useMember();
   const { activeMonth, setActiveMonth, activeYear, setActiveYear } = useMonth();
+  const navigate = useNavigate();
 
   const { data: stats, isLoading: loading } = useQuery({
     queryKey: ['dashboard', activeMember, activeMonth, activeYear],
@@ -127,7 +129,13 @@ export default function Dashboard() {
       {/* Chart Section */}
       <div>
         <h3 className="text-xl font-bold text-apple-text tracking-tight mb-4">House Spending Split</h3>
-        <div className="apple-card flex items-center justify-center h-56 relative">
+        <div 
+          className="apple-card flex items-center justify-center h-56 relative cursor-pointer active:scale-[0.98] transition-transform"
+          onClick={() => {
+            triggerHaptic('medium');
+            navigate('/analytics');
+          }}
+        >
           {stats.memberSpending.some(m => m.amount > 0) ? (
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>

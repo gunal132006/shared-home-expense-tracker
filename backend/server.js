@@ -357,6 +357,45 @@ app.get('/api/reports/dashboard/:memberId', async (req, res) => {
   }
 });
 
+// Monthly Analytics API
+app.get('/api/reports/monthly-analytics', async (req, res) => {
+  const { month, year, member, category } = req.query;
+  const targetMonth = month ? parseInt(month) : (new Date().getMonth() + 1);
+  const targetYear = year ? parseInt(year) : new Date().getFullYear();
+  
+  try {
+    let query = "SELECT * FROM expenses WHERE month = $1 AND year = $2";
+    let params = [targetMonth, targetYear];
+    let paramIndex = 3;
+
+    if (member) {
+      query += ` AND member_name = $${paramIndex}`;
+      params.push(member);
+      paramIndex++;
+    }
+    
+    // If category filtering is added in the future, it would be appended here.
+    query += " ORDER BY purchase_date ASC"; // Ascending for easier trend charting on frontend
+    
+    const result = await db.query(query, params);
+    const expenses = result.rows;
+    
+    const totalAmount = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
+    
+    res.json({
+      month: targetMonth,
+      year: targetYear,
+      totalAmount,
+      count: expenses.length,
+      expenses
+    });
+
+  } catch (error) {
+    console.error('Failed to get monthly analytics:', error);
+    res.status(500).json({ error: 'Failed to get monthly analytics' });
+  }
+});
+
 // Push Notifications API
 app.get('/api/notifications/vapidPublicKey', (req, res) => {
   res.json({ publicKey: process.env.VAPID_PUBLIC_KEY });

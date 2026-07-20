@@ -15,6 +15,7 @@ const AddExpense = lazy(() => import('./pages/AddExpense'));
 const ExpenseHistory = lazy(() => import('./pages/ExpenseHistory'));
 const Settlement = lazy(() => import('./pages/Settlement'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const MonthlyAnalytics = lazy(() => import('./pages/MonthlyAnalytics'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -140,6 +141,7 @@ function AnimatedRoutes() {
         <Route path="/add" element={<PageWrapper isModal><AddExpense /></PageWrapper>} />
         <Route path="/history" element={<PageWrapper><ExpenseHistory /></PageWrapper>} />
         <Route path="/settlement" element={<PageWrapper><Settlement /></PageWrapper>} />
+        <Route path="/analytics" element={<PageWrapper><MonthlyAnalytics /></PageWrapper>} />
         <Route path="/settings" element={<PageWrapper><SettingsPage /></PageWrapper>} />
       </Routes>
     </AnimatePresence>
