@@ -9,6 +9,7 @@ import { motion } from 'framer-motion';
 import { useMember } from '../context/MemberContext';
 import { useMonth } from '../context/MonthContext';
 import AnimatedNumber from '../components/AnimatedNumber';
+import DashboardSkeleton from '../components/DashboardSkeleton';
 import { triggerHaptic } from '../utils/haptics';
 
 const COLORS = ['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#AF52DE', '#5856D6', '#FF2D55'];
@@ -18,24 +19,32 @@ export default function Dashboard() {
   const { activeMonth, setActiveMonth, activeYear, setActiveYear } = useMonth();
   const navigate = useNavigate();
 
+  const cacheKey = `homesplit_dashboard_${activeMember}_${activeMonth}_${activeYear}`;
 
   const { data: stats, isLoading: loading } = useQuery({
     queryKey: ['dashboard', activeMember, activeMonth, activeYear],
     queryFn: async () => {
       const response = await axios.get(`/api/reports/dashboard/${activeMember}?month=${activeMonth}&year=${activeYear}`);
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(response.data));
+      } catch (e) {
+        // Ignore quota/storage errors silently
+      }
       return response.data;
+    },
+    initialData: () => {
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        return cached ? JSON.parse(cached) : undefined;
+      } catch (e) {
+        return undefined;
+      }
     },
     enabled: !!activeMember && !!activeMonth && !!activeYear
   });
 
   if (loading || !stats) {
-    return (
-      <div className="px-5 pt-6 space-y-8 animate-pulse">
-        <div className="h-6 w-32 bg-apple-border rounded-lg"></div>
-        <div className="h-56 w-full bg-apple-border rounded-[2rem]"></div>
-        <div className="h-48 w-full bg-apple-border rounded-3xl"></div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   const isOwed = stats.memberBalance > 0.01;

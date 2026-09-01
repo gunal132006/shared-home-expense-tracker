@@ -9,6 +9,7 @@ import { MonthProvider } from './context/MonthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { checkAndRecoverSubscription } from './utils/push';
 import { triggerHaptic } from './utils/haptics';
+import DashboardSkeleton from './components/DashboardSkeleton';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const AddExpense = lazy(() => import('./pages/AddExpense'));
@@ -20,8 +21,8 @@ const MonthlyAnalytics = lazy(() => import('./pages/MonthlyAnalytics'));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      cacheTime: 1000 * 60 * 30, // 30 minutes
+      staleTime: 1000 * 60 * 2, // 2 minutes fresh data window
+      gcTime: 1000 * 60 * 30, // 30 minutes garbage collection (React Query v5)
       refetchOnWindowFocus: true,
       retry: 1
     },
@@ -31,8 +32,18 @@ const queryClient = new QueryClient({
 function PushRecovery() {
   const { activeMember } = useMember();
   useEffect(() => {
-    if (activeMember) {
+    if (!activeMember) return;
+    
+    const runRecovery = () => {
       checkAndRecoverSubscription(activeMember).catch(console.error);
+    };
+
+    if ('requestIdleCallback' in window) {
+      const handle = window.requestIdleCallback(runRecovery, { timeout: 4000 });
+      return () => window.cancelIdleCallback(handle);
+    } else {
+      const timer = setTimeout(runRecovery, 2000);
+      return () => clearTimeout(timer);
     }
   }, [activeMember]);
   return null;
@@ -182,7 +193,7 @@ function App() {
                 }} />
                 <TopMemberSelector />
                 <div className="flex-1 overflow-y-auto pb-32">
-                  <Suspense fallback={null}>
+                  <Suspense fallback={<DashboardSkeleton />}>
                     <AnimatedRoutes />
                   </Suspense>
                 </div>

@@ -58,15 +58,27 @@ app.get('/api/members', (req, res) => {
   }
 });
 
+// In-memory cache for static monthly_rent setting
+let cachedRent = null;
+
+async function getMonthlyRent() {
+  if (cachedRent !== null) return cachedRent;
+  try {
+    const settingsRes = await db.query("SELECT * FROM settings WHERE setting_key = 'monthly_rent'");
+    const rent = settingsRes.rows.length > 0 ? parseFloat(settingsRes.rows[0].setting_value) : 17380;
+    cachedRent = rent;
+    return rent;
+  } catch (error) {
+    console.error('Error fetching rent setting:', error);
+    return 17380;
+  }
+}
+
 // Settings API
 app.get('/api/settings', async (req, res) => {
   try {
-    const result = await db.query("SELECT * FROM settings WHERE setting_key = 'monthly_rent'");
-    if (result.rows.length > 0) {
-      res.json({ monthly_rent: parseFloat(result.rows[0].setting_value) });
-    } else {
-      res.json({ monthly_rent: 17380 });
-    }
+    const rent = await getMonthlyRent();
+    res.json({ monthly_rent: rent });
   } catch (error) {
     console.error('Failed to fetch settings:', error);
     res.status(500).json({ error: 'Failed to fetch settings' });
@@ -83,6 +95,7 @@ app.put('/api/settings', async (req, res) => {
       "INSERT INTO settings (setting_key, setting_value) VALUES ('monthly_rent', $1) ON CONFLICT(setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value",
       [monthly_rent.toString()]
     );
+    cachedRent = parseFloat(monthly_rent);
     res.json({ success: true, monthly_rent });
   } catch (error) {
     console.error('Failed to update settings:', error);
@@ -212,15 +225,14 @@ app.get('/api/reports/settlement', async (req, res) => {
   const targetYear = year ? parseInt(year) : new Date().getFullYear();
 
   try {
-    // Get rent
-    const settingsRes = await db.query("SELECT * FROM settings WHERE setting_key = 'monthly_rent'");
-    const rent = settingsRes.rows.length > 0 ? parseFloat(settingsRes.rows[0].setting_value) : 17380;
-
-    // Get expenses
-    const expensesRes = await db.query(
-      "SELECT * FROM expenses WHERE month = $1 AND year = $2",
-      [targetMonth, targetYear]
-    );
+    // Fetch rent and expenses in parallel
+    const [rent, expensesRes] = await Promise.all([
+      getMonthlyRent(),
+      db.query(
+        "SELECT * FROM expenses WHERE month = $1 AND year = $2",
+        [targetMonth, targetYear]
+      )
+    ]);
     const expenses = expensesRes.rows;
 
     let totalSharedExpense = 0;
@@ -302,13 +314,13 @@ app.get('/api/reports/dashboard/:memberId', async (req, res) => {
   const targetYear = year ? parseInt(year) : new Date().getFullYear();
   
   try {
-    const settingsRes = await db.query("SELECT * FROM settings WHERE setting_key = 'monthly_rent'");
-    const rent = settingsRes.rows.length > 0 ? parseFloat(settingsRes.rows[0].setting_value) : 17380;
-
-    const expensesRes = await db.query(
-      "SELECT * FROM expenses WHERE month = $1 AND year = $2 ORDER BY purchase_date DESC",
-      [targetMonth, targetYear]
-    );
+    const [rent, expensesRes] = await Promise.all([
+      getMonthlyRent(),
+      db.query(
+        "SELECT * FROM expenses WHERE month = $1 AND year = $2 ORDER BY purchase_date DESC",
+        [targetMonth, targetYear]
+      )
+    ]);
     const expenses = expensesRes.rows;
 
     let totalSharedExpense = 0;
