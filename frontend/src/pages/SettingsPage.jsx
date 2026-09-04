@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -54,9 +54,21 @@ export default function SettingsPage() {
       await axios.put('/api/settings', { monthly_rent: parseFloat(rent) });
       toast.success('Rent updated successfully');
       triggerHaptic('success');
-      queryClient.invalidateQueries(['settings']);
-      queryClient.invalidateQueries(['dashboard']);
-      queryClient.invalidateQueries(['settlement']);
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['settlement'] });
+      queryClient.invalidateQueries({ queryKey: ['monthly-analytics'] });
+
+      try {
+        if ('BroadcastChannel' in window) {
+          const bc = new BroadcastChannel('homesplit_sync');
+          bc.postMessage({ type: 'EXPENSE_MUTATED' });
+          bc.close();
+        }
+      } catch (_e) {
+        // Ignore BroadcastChannel errors
+      }
+
       setIsEditingRent(false);
     } catch (error) {
       triggerHaptic('error');

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -38,9 +38,20 @@ export default function ExpenseHistory() {
       try {
         await axios.delete(`/api/expenses/${id}`);
         toast.success('Expense deleted');
-        queryClient.invalidateQueries(['expenses']);
-        queryClient.invalidateQueries(['dashboard']);
-        queryClient.invalidateQueries(['settlement']);
+        queryClient.invalidateQueries({ queryKey: ['expenses'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+        queryClient.invalidateQueries({ queryKey: ['settlement'] });
+        queryClient.invalidateQueries({ queryKey: ['monthly-analytics'] });
+
+        try {
+          if ('BroadcastChannel' in window) {
+            const bc = new BroadcastChannel('homesplit_sync');
+            bc.postMessage({ type: 'EXPENSE_MUTATED' });
+            bc.close();
+          }
+        } catch (_e) {
+          // Ignore BroadcastChannel errors
+        }
       } catch (error) {
         toast.error('Failed to delete expense');
       }

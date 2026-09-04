@@ -1,8 +1,8 @@
-import React, { useEffect, Suspense, lazy } from 'react';
+import { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Home, Plus, List, ArrowLeftRight, Settings } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MemberProvider, useMember } from './context/MemberContext';
 import { MonthProvider } from './context/MonthContext';
@@ -18,16 +18,86 @@ const Settlement = lazy(() => import('./pages/Settlement'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const MonthlyAnalytics = lazy(() => import('./pages/MonthlyAnalytics'));
 
+// Configure robust focus listener across mobile browsers, WebViews, and Android TWA
+focusManager.setEventListener((handleFocus) => {
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    const listener = () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'hidden') {
+        handleFocus(true);
+      }
+    };
+    window.addEventListener('visibilitychange', listener, false);
+    document.addEventListener('visibilitychange', listener, false);
+    window.addEventListener('focus', listener, false);
+    window.addEventListener('pageshow', listener, false);
+    return () => {
+      window.removeEventListener('visibilitychange', listener);
+      document.removeEventListener('visibilitychange', listener);
+      window.removeEventListener('focus', listener);
+      window.removeEventListener('pageshow', listener);
+    };
+  }
+});
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 2, // 2 minutes fresh data window
-      gcTime: 1000 * 60 * 30, // 30 minutes garbage collection (React Query v5)
-      refetchOnWindowFocus: true,
+      staleTime: 0, // Mark data as stale immediately so background revalidation always fetches fresh server data
+      gcTime: 1000 * 60 * 30, // 30 minutes garbage collection retention for instant transitions
+      refetchOnWindowFocus: 'always', // Revalidate whenever app becomes active/focused
+      refetchOnReconnect: 'always', // Revalidate as soon as network returns
       retry: 1
     },
   },
 });
+
+function CrossDeviceSync() {
+  useEffect(() => {
+    const invalidateAllFinancialQueries = () => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['settlement'] });
+      queryClient.invalidateQueries({ queryKey: ['monthly-analytics'] });
+    };
+
+    // 1. Service Worker push / notification-click broadcast
+    let swHandler;
+    if ('serviceWorker' in navigator) {
+      swHandler = (event) => {
+        if (event.data && event.data.type === 'REFRESH_EXPENSES') {
+          invalidateAllFinancialQueries();
+        }
+      };
+      navigator.serviceWorker.addEventListener('message', swHandler);
+    }
+
+    // 2. BroadcastChannel for same-device cross-tab / cross-window instant sync
+    let bc;
+    try {
+      if ('BroadcastChannel' in window) {
+        bc = new BroadcastChannel('homesplit_sync');
+        bc.onmessage = (event) => {
+          if (event.data && event.data.type === 'EXPENSE_MUTATED') {
+            invalidateAllFinancialQueries();
+          }
+        };
+      }
+    } catch (_e) {
+      // Ignore if unsupported
+    }
+
+    return () => {
+      if (swHandler && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', swHandler);
+      }
+      if (bc) {
+        bc.close();
+      }
+    };
+  }, []);
+
+  return null;
+}
 
 function PushRecovery() {
   const { activeMember } = useMember();
@@ -179,6 +249,7 @@ function App() {
       <ThemeProvider>
         <MemberProvider>
           <PushRecovery />
+          <CrossDeviceSync />
           <MonthProvider>
             <Router>
               <motion.div 

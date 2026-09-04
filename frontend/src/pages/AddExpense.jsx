@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -63,9 +63,22 @@ export default function AddExpense() {
       await axios.post('/api/expenses', formData);
       toast.success('Expense Added');
       triggerHaptic('success');
-      queryClient.invalidateQueries(['expenses']);
-      queryClient.invalidateQueries(['dashboard']);
-      queryClient.invalidateQueries(['settlement']);
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['settlement'] });
+      queryClient.invalidateQueries({ queryKey: ['monthly-analytics'] });
+
+      // Broadcast mutation to other open tabs/windows on the same device
+      try {
+        if ('BroadcastChannel' in window) {
+          const bc = new BroadcastChannel('homesplit_sync');
+          bc.postMessage({ type: 'EXPENSE_MUTATED' });
+          bc.close();
+        }
+      } catch (_e) {
+        // Ignore BroadcastChannel errors
+      }
+
       navigate(-1);
     } catch (error) {
       triggerHaptic('error');

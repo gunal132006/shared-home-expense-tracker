@@ -40,6 +40,8 @@ export default function Dashboard() {
         return undefined;
       }
     },
+    initialDataUpdatedAt: 0,
+    refetchInterval: 15000,
     enabled: !!activeMember && !!activeMonth && !!activeYear
   });
 
