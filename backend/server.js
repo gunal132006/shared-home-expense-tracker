@@ -24,10 +24,11 @@ app.use(helmet());
 app.use(compression());
 app.use(cors({
   origin: function (origin, callback) {
-    // Safely reflect origin to support dynamic Vercel preview domains
+    // Safely reflect origin to support dynamic Vercel preview domains and production domain
     callback(null, origin || '*');
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
   credentials: true
 }));
 app.use(express.json());
@@ -300,12 +301,17 @@ app.put('/api/members/:id', async (req, res) => {
   }
 });
 
-app.patch('/api/members/:id/archive', async (req, res) => {
+const handleArchiveMember = async (req, res) => {
   const { id } = req.params;
   const { move_out_date } = req.body;
 
+  const memberId = parseInt(id, 10);
+  if (isNaN(memberId)) {
+    return res.status(400).json({ error: 'Invalid member ID' });
+  }
+
   try {
-    const existing = await db.query("SELECT * FROM members WHERE id = $1", [id]);
+    const existing = await db.query("SELECT * FROM members WHERE id = $1", [memberId]);
     if (existing.rows.length === 0) {
       return res.status(404).json({ error: 'Member not found' });
     }
@@ -318,33 +324,44 @@ app.patch('/api/members/:id/archive', async (req, res) => {
     // Ensure at least one active member remains
     const activeCountRes = await db.query(
       "SELECT COUNT(*) FROM members WHERE status = 'active' AND id != $1",
-      [id]
+      [memberId]
     );
     if (parseInt(activeCountRes.rows[0].count) < 1) {
       return res.status(400).json({ error: 'Cannot archive the only active household member' });
     }
 
-    const moveOut = move_out_date 
-      ? new Date(move_out_date).toISOString().split('T')[0] 
-      : new Date().toISOString().split('T')[0];
+    let moveOut;
+    if (move_out_date) {
+      const parsedDate = new Date(move_out_date);
+      if (isNaN(parsedDate.getTime())) {
+        return res.status(400).json({ error: 'Invalid move_out_date format. Expected YYYY-MM-DD.' });
+      }
+      moveOut = parsedDate.toISOString().split('T')[0];
+    } else {
+      moveOut = new Date().toISOString().split('T')[0];
+    }
 
     const result = await db.query(
       "UPDATE members SET status = 'archived', move_out_date = $1, updated_at = NOW() WHERE id = $2 RETURNING id, name, status, move_in_date, move_out_date, created_at, updated_at",
-      [moveOut, id]
+      [moveOut, memberId]
     );
 
     res.json({ success: true, member: result.rows[0] });
   } catch (error) {
     console.error('Error archiving member:', error);
-    res.status(500).json({ error: 'Failed to archive member' });
+    res.status(500).json({ error: 'Failed to archive member: ' + error.message });
   }
-});
+};
 
-app.patch('/api/members/:id/restore', async (req, res) => {
+const handleRestoreMember = async (req, res) => {
   const { id } = req.params;
+  const memberId = parseInt(id, 10);
+  if (isNaN(memberId)) {
+    return res.status(400).json({ error: 'Invalid member ID' });
+  }
 
   try {
-    const existing = await db.query("SELECT * FROM members WHERE id = $1", [id]);
+    const existing = await db.query("SELECT * FROM members WHERE id = $1", [memberId]);
     if (existing.rows.length === 0) {
       return res.status(404).json({ error: 'Member not found' });
     }
@@ -357,7 +374,7 @@ app.patch('/api/members/:id/restore', async (req, res) => {
     // Check duplicate active name
     const dupCheck = await db.query(
       "SELECT id FROM members WHERE LOWER(name) = LOWER($1) AND status = 'active' AND id != $2",
-      [member.name, id]
+      [member.name, memberId]
     );
     if (dupCheck.rows.length > 0) {
       return res.status(400).json({ error: `An active member named "${member.name}" already exists.` });
@@ -365,15 +382,21 @@ app.patch('/api/members/:id/restore', async (req, res) => {
 
     const result = await db.query(
       "UPDATE members SET status = 'active', move_out_date = NULL, updated_at = NOW() WHERE id = $1 RETURNING id, name, status, move_in_date, move_out_date, created_at, updated_at",
-      [id]
+      [memberId]
     );
 
     res.json({ success: true, member: result.rows[0] });
   } catch (error) {
     console.error('Error restoring member:', error);
-    res.status(500).json({ error: 'Failed to restore member' });
+    res.status(500).json({ error: 'Failed to restore member: ' + error.message });
   }
-});
+};
+
+// Register both PATCH and POST aliases for member archive and restore
+app.patch('/api/members/:id/archive', handleArchiveMember);
+app.post('/api/members/:id/archive', handleArchiveMember);
+app.patch('/api/members/:id/restore', handleRestoreMember);
+app.post('/api/members/:id/restore', handleRestoreMember);
 
 // In-memory cache for static monthly_rent setting
 let cachedRent = null;

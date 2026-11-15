@@ -215,9 +215,20 @@ export default function ManageMembers() {
 
     setIsSubmitting(true);
     try {
-      await axios.patch(`/api/members/${archivingMember.id}/archive`, {
-        move_out_date: archiveMoveOutDate
-      });
+      // Send archive request via PATCH with POST fallback if CORS/network preflight fails
+      try {
+        await axios.patch(`/api/members/${archivingMember.id}/archive`, {
+          move_out_date: archiveMoveOutDate
+        });
+      } catch (patchErr) {
+        if (!patchErr.response) {
+          await axios.post(`/api/members/${archivingMember.id}/archive`, {
+            move_out_date: archiveMoveOutDate
+          });
+        } else {
+          throw patchErr;
+        }
+      }
 
       // If archived member was current active profile, switch to next available active member
       if (activeMember === archivingMember.name) {
@@ -234,7 +245,8 @@ export default function ManageMembers() {
       setArchivingMember(null);
     } catch (error) {
       triggerHaptic('error');
-      toast.error(error.response?.data?.error || 'Failed to archive member');
+      const errorMsg = error.response?.data?.error || error.message || 'Failed to archive member';
+      toast.error(errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -246,14 +258,25 @@ export default function ManageMembers() {
 
     setIsSubmitting(true);
     try {
-      await axios.patch(`/api/members/${restoringMember.id}/restore`);
+      // Send restore request via PATCH with POST fallback if CORS/network preflight fails
+      try {
+        await axios.patch(`/api/members/${restoringMember.id}/restore`);
+      } catch (patchErr) {
+        if (!patchErr.response) {
+          await axios.post(`/api/members/${restoringMember.id}/restore`);
+        } else {
+          throw patchErr;
+        }
+      }
+
       triggerHaptic('success');
       toast.success(`${restoringMember.name} restored to active household!`);
       broadcastMemberChange();
       setRestoringMember(null);
     } catch (error) {
       triggerHaptic('error');
-      toast.error(error.response?.data?.error || 'Failed to restore member');
+      const errorMsg = error.response?.data?.error || error.message || 'Failed to restore member';
+      toast.error(errorMsg);
     } finally {
       setIsSubmitting(false);
     }

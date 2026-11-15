@@ -257,13 +257,14 @@ describe('HomeSplit Member Management Automated Test Suite', () => {
     }
   });
 
-  const request = async (method, path, body = null) => {
+  const request = async (method, path, body = null, headers = {}) => {
     return new Promise((resolve, reject) => {
       const url = new URL(path, baseUrl);
       const req = http.request(url, {
         method,
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...headers
         }
       }, (res) => {
         let data = '';
@@ -271,9 +272,9 @@ describe('HomeSplit Member Management Automated Test Suite', () => {
         res.on('end', () => {
           try {
             const parsed = data ? JSON.parse(data) : {};
-            resolve({ status: res.statusCode, body: parsed });
+            resolve({ status: res.statusCode, headers: res.headers, body: parsed });
           } catch (e) {
-            resolve({ status: res.statusCode, text: data });
+            resolve({ status: res.statusCode, headers: res.headers, text: data });
           }
         });
       });
@@ -484,5 +485,40 @@ describe('HomeSplit Member Management Automated Test Suite', () => {
     const expRes = await request('GET', '/api/expenses?month=11&year=2026');
     const gunalExp = expRes.body.find(e => e.item_name === 'November Provisions');
     assert.strictEqual(gunalExp.member_name, 'Gunal S');
+  });
+
+  it('Scenario 13: Verify CORS preflight OPTIONS request explicitly permits PATCH for production Vercel origin', async () => {
+    const preflightRes = await request('OPTIONS', '/api/members/4/archive', null, {
+      'Origin': 'https://shared-home-expense-tracker.vercel.app',
+      'Access-Control-Request-Method': 'PATCH',
+      'Access-Control-Request-Headers': 'Content-Type'
+    });
+    // CORS middleware responds 204 No Content for preflight
+    assert.ok(preflightRes.status === 204 || preflightRes.status === 200, `Expected 204 or 200, got: ${preflightRes.status}`);
+    const allowMethods = preflightRes.headers['access-control-allow-methods'] || '';
+    assert.ok(allowMethods.includes('PATCH'), `CORS methods must include PATCH, got: ${allowMethods}`);
+    assert.strictEqual(
+      preflightRes.headers['access-control-allow-origin'],
+      'https://shared-home-expense-tracker.vercel.app',
+      'Origin must match Vercel production origin'
+    );
+  });
+
+  it('Scenario 14: Verify archive and restore endpoints work via both PATCH and POST aliases', async () => {
+    // Add temporary member
+    const tempMember = await request('POST', '/api/members', { name: 'TempMember', move_in_date: '2026-11-01' });
+    const memberId = tempMember.body.member.id;
+
+    // Archive using POST alias
+    const postArchiveRes = await request('POST', `/api/members/${memberId}/archive`, { move_out_date: '2026-11-15' });
+    assert.strictEqual(postArchiveRes.status, 200);
+    assert.strictEqual(postArchiveRes.body.member.status, 'archived');
+    assert.strictEqual(postArchiveRes.body.member.move_out_date, '2026-11-15');
+
+    // Restore using POST alias
+    const postRestoreRes = await request('POST', `/api/members/${memberId}/restore`);
+    assert.strictEqual(postRestoreRes.status, 200);
+    assert.strictEqual(postRestoreRes.body.member.status, 'active');
+    assert.strictEqual(postRestoreRes.body.member.move_out_date, null);
   });
 });
