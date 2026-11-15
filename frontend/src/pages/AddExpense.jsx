@@ -6,11 +6,13 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { X } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { useMember } from '../context/MemberContext';
 import { triggerHaptic } from '../utils/haptics';
 
 export default function AddExpense() {
   const navigate = useNavigate();
   const { isDarkMode } = useTheme();
+  const { activeMember } = useMember();
   const amountInputRef = useRef(null);
   
   const [formData, setFormData] = useState({
@@ -31,17 +33,19 @@ export default function AddExpense() {
     
     const fetchMembers = async () => {
       try {
-        const res = await axios.get('/api/members');
-        setMembers(res.data);
-        if (res.data.length > 0) {
-          setFormData(prev => ({ ...prev, member_name: res.data[0] }));
+        const res = await axios.get('/api/members/active');
+        const list = res.data.map(m => (typeof m === 'string' ? m : m.name));
+        setMembers(list);
+        if (list.length > 0) {
+          const defaultName = (activeMember && list.includes(activeMember)) ? activeMember : list[0];
+          setFormData(prev => ({ ...prev, member_name: defaultName }));
         }
       } catch (error) {
         toast.error('Failed to load members');
       }
     };
     fetchMembers();
-  }, []);
+  }, [activeMember]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

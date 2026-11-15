@@ -17,6 +17,7 @@ const ExpenseHistory = lazy(() => import('./pages/ExpenseHistory'));
 const Settlement = lazy(() => import('./pages/Settlement'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const MonthlyAnalytics = lazy(() => import('./pages/MonthlyAnalytics'));
+const ManageMembers = lazy(() => import('./pages/ManageMembers'));
 
 // Configure robust focus listener across mobile browsers, WebViews, and Android TWA
 focusManager.setEventListener((handleFocus) => {
@@ -58,13 +59,14 @@ function CrossDeviceSync() {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
       queryClient.invalidateQueries({ queryKey: ['settlement'] });
       queryClient.invalidateQueries({ queryKey: ['monthly-analytics'] });
+      queryClient.invalidateQueries({ queryKey: ['members'] });
     };
 
     // 1. Service Worker push / notification-click broadcast
     let swHandler;
     if ('serviceWorker' in navigator) {
       swHandler = (event) => {
-        if (event.data && event.data.type === 'REFRESH_EXPENSES') {
+        if (event.data && (event.data.type === 'REFRESH_EXPENSES' || event.data.type === 'REFRESH_MEMBERS')) {
           invalidateAllFinancialQueries();
         }
       };
@@ -77,7 +79,7 @@ function CrossDeviceSync() {
       if ('BroadcastChannel' in window) {
         bc = new BroadcastChannel('homesplit_sync');
         bc.onmessage = (event) => {
-          if (event.data && event.data.type === 'EXPENSE_MUTATED') {
+          if (event.data && (event.data.type === 'EXPENSE_MUTATED' || event.data.type === 'MEMBERS_MUTATED')) {
             invalidateAllFinancialQueries();
           }
         };
@@ -124,7 +126,7 @@ function TopMemberSelector() {
   const { activeMember, setActiveMember, MEMBERS } = useMember();
   
   // Hide member selector on Add Expense & Settings screens
-  if (['/add', '/settings'].includes(location.pathname)) return null;
+  if (['/add', '/settings', '/settings/members'].includes(location.pathname)) return null;
 
   return (
     <div className="pt-12 pb-4 px-2 bg-apple-bg/80 backdrop-blur-md sticky top-0 z-40 border-b border-apple-border/50">
@@ -224,6 +226,7 @@ function AnimatedRoutes() {
         <Route path="/settlement" element={<PageWrapper><Settlement /></PageWrapper>} />
         <Route path="/analytics" element={<PageWrapper><MonthlyAnalytics /></PageWrapper>} />
         <Route path="/settings" element={<PageWrapper><SettingsPage /></PageWrapper>} />
+        <Route path="/settings/members" element={<PageWrapper><ManageMembers /></PageWrapper>} />
       </Routes>
     </AnimatePresence>
   );

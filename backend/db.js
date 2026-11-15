@@ -49,9 +49,39 @@ const initDB = async () => {
       );
     `);
 
+    // Create Members table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS members (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL UNIQUE,
+        status VARCHAR(20) NOT NULL DEFAULT 'active',
+        move_in_date DATE,
+        move_out_date DATE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Seed default active household members (7 members)
+    await pool.query(`
+      INSERT INTO members (name, status, move_in_date)
+      VALUES 
+        ('Gunal', 'active', '2024-01-01'),
+        ('Gopi', 'active', '2024-01-01'),
+        ('Sathish', 'active', '2024-01-01'),
+        ('Sekar', 'active', '2024-01-01'),
+        ('Vishnu', 'active', '2024-01-01'),
+        ('Kumar', 'active', '2024-01-01'),
+        ('Hemu', 'active', '2024-01-01')
+      ON CONFLICT (name) DO NOTHING;
+    `);
+
     // Safely add month and year columns to support monthly history tracking
     await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS month INTEGER;`);
     await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS year INTEGER;`);
+
+    // Safely add member_id column to expenses table
+    await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS member_id INTEGER REFERENCES members(id);`);
 
     // Backfill month and year for existing records based on their purchase_date
     await pool.query(`
@@ -61,7 +91,27 @@ const initDB = async () => {
       WHERE month IS NULL OR year IS NULL;
     `);
 
+    // Ensure any existing expense member names exist in members table
+    await pool.query(`
+      INSERT INTO members (name, status, move_in_date)
+      SELECT DISTINCT e.member_name, 'active', '2024-01-01'
+      FROM expenses e
+      WHERE NOT EXISTS (SELECT 1 FROM members m WHERE m.name = e.member_name)
+      ON CONFLICT (name) DO NOTHING;
+    `);
+
+    // Backfill member_id for existing expenses
+    await pool.query(`
+      UPDATE expenses e
+      SET member_id = m.id
+      FROM members m
+      WHERE e.member_name = m.name AND e.member_id IS NULL;
+    `);
+
     // Create indexes for faster queries
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_members_status ON members(status);`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_members_name ON members(name);`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_expenses_member_id ON expenses(member_id);`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_member_name ON expenses(member_name);`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_purchase_date ON expenses(purchase_date);`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_month_year ON expenses(month, year);`);
@@ -69,6 +119,14 @@ const initDB = async () => {
     // New performance optimizations indexes
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_member_month_year ON expenses(member_name, month, year);`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_push_member_name ON push_subscriptions(member_name);`);
+
+    // Supabase RLS Security Lockdown for members table
+    try {
+      await pool.query(`ALTER TABLE IF EXISTS members ENABLE ROW LEVEL SECURITY;`);
+      await pool.query(`REVOKE ALL ON TABLE members FROM anon, authenticated;`);
+    } catch (_rlsErr) {
+      // Non-fatal if RLS or roles don't exist in local/mock environments
+    }
 
     // Deduplicate existing push_subscriptions based on endpoint
     const cleanupResult = await pool.query(`

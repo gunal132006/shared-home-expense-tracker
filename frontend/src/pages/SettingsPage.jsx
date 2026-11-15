@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -208,7 +209,11 @@ export default function SettingsPage() {
               </div>
             </div>
             
-            <div className="p-4 pl-5 flex justify-between items-center border-b border-apple-border/50 active:bg-apple-bg/50 transition-colors">
+            <Link 
+              to="/settings/members" 
+              onClick={() => triggerHaptic('light')}
+              className="p-4 pl-5 flex justify-between items-center border-b border-apple-border/50 active:bg-apple-bg/50 transition-colors cursor-pointer"
+            >
               <div className="flex items-center gap-4">
                 <div className="bg-apple-green rounded-xl p-2.5 shadow-sm">
                   <Users size={20} className="text-white" strokeWidth={2.5} />
@@ -216,7 +221,7 @@ export default function SettingsPage() {
                 <span className="font-bold text-apple-text text-lg tracking-tight">Manage Members</span>
               </div>
               <ChevronRight size={20} className="text-apple-textMuted/50" />
-            </div>
+            </Link>
 
             <div className="p-4 pl-5 flex justify-between items-center active:bg-apple-bg/50 transition-colors">
               <div className="flex items-center gap-4">

@@ -54,15 +54,253 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Get static members
-const MEMBERS = ['Gunal', 'Gopi', 'Sathish', 'Sekar', 'Vishnu', 'Kumar', 'Hemu'];
+// Database Member Helper Functions
+async function getAllMembers() {
+  const result = await db.query(
+    "SELECT id, name, status, move_in_date, move_out_date, created_at, updated_at FROM members ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, name ASC"
+  );
+  return result.rows;
+}
 
-app.get('/api/members', (req, res) => {
+async function getActiveMembers() {
+  const result = await db.query(
+    "SELECT id, name, status, move_in_date, move_out_date, created_at, updated_at FROM members WHERE status = 'active' ORDER BY name ASC"
+  );
+  return result.rows;
+}
+
+async function getArchivedMembers() {
+  const result = await db.query(
+    "SELECT id, name, status, move_in_date, move_out_date, created_at, updated_at FROM members WHERE status = 'archived' ORDER BY move_out_date DESC, name ASC"
+  );
+  return result.rows;
+}
+
+// Members API Endpoints
+app.get('/api/members', async (req, res) => {
   try {
-    res.json(MEMBERS);
+    const { status, format } = req.query;
+    let members;
+    if (status === 'active') {
+      members = await getActiveMembers();
+    } else if (status === 'archived') {
+      members = await getArchivedMembers();
+    } else {
+      members = await getAllMembers();
+    }
+
+    if (format === 'names') {
+      return res.json(members.map(m => m.name));
+    }
+    res.json(members);
   } catch (error) {
     console.error('Error fetching members:', error);
     res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+app.get('/api/members/active', async (req, res) => {
+  try {
+    const { format } = req.query;
+    const members = await getActiveMembers();
+    if (format === 'names') {
+      return res.json(members.map(m => m.name));
+    }
+    res.json(members);
+  } catch (error) {
+    console.error('Error fetching active members:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+app.get('/api/members/archived', async (req, res) => {
+  try {
+    const members = await getArchivedMembers();
+    res.json(members);
+  } catch (error) {
+    console.error('Error fetching archived members:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+app.post('/api/members', async (req, res) => {
+  const { name, move_in_date } = req.body;
+  if (!name || typeof name !== 'string' || !name.trim()) {
+    return res.status(400).json({ error: 'Member name is required' });
+  }
+  const cleanName = name.trim();
+  if (cleanName.length > 100) {
+    return res.status(400).json({ error: 'Member name must be 100 characters or fewer' });
+  }
+
+  try {
+    // Check for duplicate name (case-insensitive)
+    const existing = await db.query(
+      "SELECT id, name, status FROM members WHERE LOWER(name) = LOWER($1)",
+      [cleanName]
+    );
+
+    if (existing.rows.length > 0) {
+      const match = existing.rows[0];
+      if (match.status === 'active') {
+        return res.status(400).json({ error: `An active member named "${cleanName}" already exists.` });
+      } else {
+        return res.status(400).json({ 
+          error: `A former member named "${cleanName}" already exists. You can restore them from Former Members instead of creating a duplicate.` 
+        });
+      }
+    }
+
+    const moveIn = move_in_date ? new Date(move_in_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+
+    const result = await db.query(
+      "INSERT INTO members (name, status, move_in_date) VALUES ($1, 'active', $2) RETURNING id, name, status, move_in_date, move_out_date, created_at, updated_at",
+      [cleanName, moveIn]
+    );
+
+    res.status(201).json({ success: true, member: result.rows[0] });
+  } catch (error) {
+    console.error('Error creating member:', error);
+    res.status(500).json({ error: 'Failed to create member' });
+  }
+});
+
+app.put('/api/members/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, move_in_date, move_out_date, status } = req.body;
+
+  if (!name || typeof name !== 'string' || !name.trim()) {
+    return res.status(400).json({ error: 'Member name is required' });
+  }
+  const cleanName = name.trim();
+
+  try {
+    const existing = await db.query("SELECT * FROM members WHERE id = $1", [id]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    const currentMember = existing.rows[0];
+
+    // Check duplicate name on other members
+    const dupCheck = await db.query(
+      "SELECT id FROM members WHERE LOWER(name) = LOWER($1) AND id != $2",
+      [cleanName, id]
+    );
+    if (dupCheck.rows.length > 0) {
+      return res.status(400).json({ error: `Another member named "${cleanName}" already exists.` });
+    }
+
+    const newMoveIn = move_in_date !== undefined ? (move_in_date ? new Date(move_in_date).toISOString().split('T')[0] : null) : currentMember.move_in_date;
+    const newMoveOut = move_out_date !== undefined ? (move_out_date ? new Date(move_out_date).toISOString().split('T')[0] : null) : currentMember.move_out_date;
+    const newStatus = status || currentMember.status;
+
+    // Update in transaction if name changed to synchronize expenses and subscriptions
+    if (cleanName !== currentMember.name) {
+      await db.query('BEGIN');
+      try {
+        const updateRes = await db.query(
+          "UPDATE members SET name = $1, move_in_date = $2, move_out_date = $3, status = $4, updated_at = NOW() WHERE id = $5 RETURNING id, name, status, move_in_date, move_out_date, created_at, updated_at",
+          [cleanName, newMoveIn, newMoveOut, newStatus, id]
+        );
+        await db.query(
+          "UPDATE expenses SET member_name = $1 WHERE member_id = $2 OR member_name = $3",
+          [cleanName, id, currentMember.name]
+        );
+        await db.query(
+          "UPDATE push_subscriptions SET member_name = $1 WHERE member_name = $2",
+          [cleanName, currentMember.name]
+        );
+        await db.query('COMMIT');
+        return res.json({ success: true, member: updateRes.rows[0] });
+      } catch (txErr) {
+        await db.query('ROLLBACK');
+        throw txErr;
+      }
+    } else {
+      const updateRes = await db.query(
+        "UPDATE members SET name = $1, move_in_date = $2, move_out_date = $3, status = $4, updated_at = NOW() WHERE id = $5 RETURNING id, name, status, move_in_date, move_out_date, created_at, updated_at",
+        [cleanName, newMoveIn, newMoveOut, newStatus, id]
+      );
+      return res.json({ success: true, member: updateRes.rows[0] });
+    }
+  } catch (error) {
+    console.error('Error updating member:', error);
+    res.status(500).json({ error: 'Failed to update member' });
+  }
+});
+
+app.patch('/api/members/:id/archive', async (req, res) => {
+  const { id } = req.params;
+  const { move_out_date } = req.body;
+
+  try {
+    const existing = await db.query("SELECT * FROM members WHERE id = $1", [id]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    const member = existing.rows[0];
+
+    if (member.status === 'archived') {
+      return res.status(400).json({ error: 'Member is already archived' });
+    }
+
+    // Ensure at least one active member remains
+    const activeCountRes = await db.query(
+      "SELECT COUNT(*) FROM members WHERE status = 'active' AND id != $1",
+      [id]
+    );
+    if (parseInt(activeCountRes.rows[0].count) < 1) {
+      return res.status(400).json({ error: 'Cannot archive the only active household member' });
+    }
+
+    const moveOut = move_out_date 
+      ? new Date(move_out_date).toISOString().split('T')[0] 
+      : new Date().toISOString().split('T')[0];
+
+    const result = await db.query(
+      "UPDATE members SET status = 'archived', move_out_date = $1, updated_at = NOW() WHERE id = $2 RETURNING id, name, status, move_in_date, move_out_date, created_at, updated_at",
+      [moveOut, id]
+    );
+
+    res.json({ success: true, member: result.rows[0] });
+  } catch (error) {
+    console.error('Error archiving member:', error);
+    res.status(500).json({ error: 'Failed to archive member' });
+  }
+});
+
+app.patch('/api/members/:id/restore', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const existing = await db.query("SELECT * FROM members WHERE id = $1", [id]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    const member = existing.rows[0];
+
+    if (member.status === 'active') {
+      return res.status(400).json({ error: 'Member is already active' });
+    }
+
+    // Check duplicate active name
+    const dupCheck = await db.query(
+      "SELECT id FROM members WHERE LOWER(name) = LOWER($1) AND status = 'active' AND id != $2",
+      [member.name, id]
+    );
+    if (dupCheck.rows.length > 0) {
+      return res.status(400).json({ error: `An active member named "${member.name}" already exists.` });
+    }
+
+    const result = await db.query(
+      "UPDATE members SET status = 'active', move_out_date = NULL, updated_at = NOW() WHERE id = $1 RETURNING id, name, status, move_in_date, move_out_date, created_at, updated_at",
+      [id]
+    );
+
+    res.json({ success: true, member: result.rows[0] });
+  } catch (error) {
+    console.error('Error restoring member:', error);
+    res.status(500).json({ error: 'Failed to restore member' });
   }
 });
 
@@ -146,9 +384,13 @@ app.post('/api/expenses', async (req, res) => {
     const month = dateObj.getMonth() + 1;
     const year = dateObj.getFullYear();
     
+    // Resolve member_id if present in members table
+    const memberRes = await db.query("SELECT id FROM members WHERE name = $1", [member_name]);
+    const memberId = memberRes.rows.length > 0 ? memberRes.rows[0].id : null;
+
     const result = await db.query(
-      "INSERT INTO expenses (item_name, amount, member_name, purchase_date, notes, month, year) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
-      [item_name, parseFloat(amount), member_name, purchase_date, notes || '', month, year]
+      "INSERT INTO expenses (item_name, amount, member_name, member_id, purchase_date, notes, month, year) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+      [item_name, parseFloat(amount), member_name, memberId, purchase_date, notes || '', month, year]
     );
 
     // Send push notifications asynchronously
@@ -203,10 +445,13 @@ app.put('/api/expenses/:id', async (req, res) => {
     const dateObj = new Date(purchase_date);
     const month = dateObj.getMonth() + 1;
     const year = dateObj.getFullYear();
+
+    const memberRes = await db.query("SELECT id FROM members WHERE name = $1", [member_name]);
+    const memberId = memberRes.rows.length > 0 ? memberRes.rows[0].id : null;
     
     await db.query(
-      "UPDATE expenses SET item_name = $1, amount = $2, member_name = $3, purchase_date = $4, notes = $5, month = $6, year = $7 WHERE id = $8",
-      [item_name, parseFloat(amount), member_name, purchase_date, notes || '', month, year, id]
+      "UPDATE expenses SET item_name = $1, amount = $2, member_name = $3, member_id = $4, purchase_date = $5, notes = $6, month = $7, year = $8 WHERE id = $9",
+      [item_name, parseFloat(amount), member_name, memberId, purchase_date, notes || '', month, year, id]
     );
     res.json({ success: true });
   } catch (error) {
@@ -233,38 +478,73 @@ app.get('/api/reports/settlement', async (req, res) => {
   const targetYear = year ? parseInt(year) : new Date().getFullYear();
 
   try {
-    // Fetch rent and expenses in parallel
-    const [rent, expensesRes] = await Promise.all([
+    // Fetch rent, expenses, and members in parallel
+    const [rent, expensesRes, allMembers, activeMembers] = await Promise.all([
       getMonthlyRent(),
       db.query(
         "SELECT * FROM expenses WHERE month = $1 AND year = $2",
         [targetMonth, targetYear]
-      )
+      ),
+      getAllMembers(),
+      getActiveMembers()
     ]);
     const expenses = expensesRes.rows;
 
+    const now = new Date();
+    const isCurrentOrFuture = (targetYear > now.getFullYear()) || (targetYear === now.getFullYear() && targetMonth >= (now.getMonth() + 1));
+
+    const monthStart = new Date(Date.UTC(targetYear, targetMonth - 1, 1));
+    const monthEnd = new Date(Date.UTC(targetYear, targetMonth, 0, 23, 59, 59, 999));
+
+    // Determine participating members roster for this month
+    let roster;
+    if (isCurrentOrFuture) {
+      // Current household calculations: use the active household roster
+      roster = activeMembers.map(m => m.name);
+    } else {
+      // Historical reports: include members active during that month
+      roster = allMembers.filter(m => {
+        const movedIn = m.move_in_date ? new Date(m.move_in_date) <= monthEnd : true;
+        const movedOut = m.move_out_date ? new Date(m.move_out_date) >= monthStart : true;
+        return movedIn && movedOut;
+      }).map(m => m.name);
+    }
+
+    // Always ensure any member who recorded expenses in this month is accounted for
+    expenses.forEach(exp => {
+      if (!roster.includes(exp.member_name)) {
+        roster.push(exp.member_name);
+      }
+    });
+
+    if (roster.length === 0) {
+      roster = activeMembers.length > 0 ? activeMembers.map(m => m.name) : ['House'];
+    }
+
     let totalSharedExpense = 0;
     const memberSpending = {};
-    MEMBERS.forEach(m => memberSpending[m] = 0);
+    roster.forEach(m => memberSpending[m] = 0);
 
     expenses.forEach(exp => {
       const amt = parseFloat(exp.amount);
       totalSharedExpense += amt;
-      if (memberSpending[exp.member_name] !== undefined) {
-        memberSpending[exp.member_name] += amt;
-      }
+      memberSpending[exp.member_name] = (memberSpending[exp.member_name] || 0) + amt;
     });
 
     const totalHouseExpense = totalSharedExpense + rent;
-    const perPersonShare = totalHouseExpense / MEMBERS.length;
+    // Exclude archived members from current household equal rent split; active members share rent equally
+    const shareCount = isCurrentOrFuture ? Math.max(1, activeMembers.length) : Math.max(1, roster.length);
+    const perPersonShare = totalHouseExpense / shareCount;
 
-    const balances = MEMBERS.map(member => {
-      const spent = memberSpending[member];
-      const balance = spent - perPersonShare;
+    const balances = roster.map(member => {
+      const spent = memberSpending[member] || 0;
+      const isActiveInSplit = isCurrentOrFuture ? activeMembers.some(m => m.name === member) : true;
+      const share = isActiveInSplit ? perPersonShare : 0;
+      const balance = spent - share;
       return {
         member,
         spent,
-        share: perPersonShare,
+        share,
         balance,
         status: balance > 0 ? 'Receive' : (balance < 0 ? 'Pay' : 'Settled')
       };
@@ -322,34 +602,65 @@ app.get('/api/reports/dashboard/:memberId', async (req, res) => {
   const targetYear = year ? parseInt(year) : new Date().getFullYear();
   
   try {
-    const [rent, expensesRes] = await Promise.all([
+    const [rent, expensesRes, allMembers, activeMembers] = await Promise.all([
       getMonthlyRent(),
       db.query(
         "SELECT * FROM expenses WHERE month = $1 AND year = $2 ORDER BY purchase_date DESC",
         [targetMonth, targetYear]
-      )
+      ),
+      getAllMembers(),
+      getActiveMembers()
     ]);
     const expenses = expensesRes.rows;
+
+    const now = new Date();
+    const isCurrentOrFuture = (targetYear > now.getFullYear()) || (targetYear === now.getFullYear() && targetMonth >= (now.getMonth() + 1));
+
+    const monthStart = new Date(Date.UTC(targetYear, targetMonth - 1, 1));
+    const monthEnd = new Date(Date.UTC(targetYear, targetMonth, 0, 23, 59, 59, 999));
+
+    let roster;
+    if (isCurrentOrFuture) {
+      roster = activeMembers.map(m => m.name);
+    } else {
+      roster = allMembers.filter(m => {
+        const movedIn = m.move_in_date ? new Date(m.move_in_date) <= monthEnd : true;
+        const movedOut = m.move_out_date ? new Date(m.move_out_date) >= monthStart : true;
+        return movedIn && movedOut;
+      }).map(m => m.name);
+    }
+
+    expenses.forEach(exp => {
+      if (!roster.includes(exp.member_name)) {
+        roster.push(exp.member_name);
+      }
+    });
+
+    if (roster.length === 0) {
+      roster = activeMembers.length > 0 ? activeMembers.map(m => m.name) : ['House'];
+    }
 
     let totalSharedExpense = 0;
     let memberTotalSpent = 0;
     const memberSpending = {};
-    MEMBERS.forEach(m => memberSpending[m] = 0);
+    roster.forEach(m => memberSpending[m] = 0);
 
     expenses.forEach(exp => {
       const amt = parseFloat(exp.amount);
       totalSharedExpense += amt;
-      if (memberSpending[exp.member_name] !== undefined) {
-        memberSpending[exp.member_name] += amt;
-      }
+      memberSpending[exp.member_name] = (memberSpending[exp.member_name] || 0) + amt;
       if (exp.member_name === memberId) {
         memberTotalSpent += amt;
       }
     });
 
     const totalHouseExpense = totalSharedExpense + rent;
-    const perPersonShare = totalHouseExpense / MEMBERS.length;
-    const memberBalance = memberTotalSpent - perPersonShare;
+    const shareCount = isCurrentOrFuture ? Math.max(1, activeMembers.length) : Math.max(1, roster.length);
+    const perPersonShare = totalHouseExpense / shareCount;
+
+    const isMemberInSplit = isCurrentOrFuture ? activeMembers.some(m => m.name === memberId) : roster.includes(memberId);
+    const memberShare = isMemberInSplit ? perPersonShare : 0;
+    const memberBalance = memberTotalSpent - memberShare;
     
     // Percentage contribution
     const contributionPercentage = totalSharedExpense > 0 
@@ -476,6 +787,10 @@ app.post('/api/notifications/unsubscribe', async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Production Backend running on port ${port}`);
-});
+if (require.main === module) {
+  app.listen(port, () => {
+    console.log(`Production Backend running on port ${port}`);
+  });
+}
+
+module.exports = app;

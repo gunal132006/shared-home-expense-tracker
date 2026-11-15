@@ -64,6 +64,13 @@ export default function ExpenseHistory() {
     return matchesSearch && matchesMember;
   });
 
+  const memberOptions = Array.from(
+    new Set([
+      ...members.map(m => (typeof m === 'string' ? m : m.name)),
+      ...expenses.map(e => e.member_name)
+    ].filter(Boolean))
+  ).sort();
+
   return (
     <div className="px-5 pt-4 pb-12">
       <h1 className="text-3xl font-black text-apple-text tracking-tight mb-6">History</h1>
@@ -87,7 +94,7 @@ export default function ExpenseHistory() {
             className="apple-input pl-11 py-3 appearance-none !bg-apple-card shadow-sm font-semibold relative z-0 transition-colors duration-300"
           >
             <option value="All">All</option>
-            {members.map(m => <option key={m} value={m}>{m}</option>)}
+            {memberOptions.map(name => <option key={name} value={name}>{name}</option>)}
           </select>
         </div>
       </div>
