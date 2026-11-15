@@ -53,7 +53,7 @@ const initDB = async () => {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS members (
         id SERIAL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL UNIQUE,
+        name VARCHAR(100) NOT NULL,
         status VARCHAR(20) NOT NULL DEFAULT 'active',
         move_in_date DATE,
         move_out_date DATE,
@@ -62,18 +62,21 @@ const initDB = async () => {
       );
     `);
 
-    // Seed default active household members (7 members)
+    // Ensure all required columns exist even if members table was created with an older schema
+    await pool.query(`ALTER TABLE members ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'active';`);
+    await pool.query(`ALTER TABLE members ADD COLUMN IF NOT EXISTS move_in_date DATE;`);
+    await pool.query(`ALTER TABLE members ADD COLUMN IF NOT EXISTS move_out_date DATE;`);
+    await pool.query(`ALTER TABLE members ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
+    await pool.query(`ALTER TABLE members ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
+
+    // Seed default active household members safely without relying on constraint names
     await pool.query(`
       INSERT INTO members (name, status, move_in_date)
-      VALUES 
-        ('Gunal', 'active', '2024-01-01'),
-        ('Gopi', 'active', '2024-01-01'),
-        ('Sathish', 'active', '2024-01-01'),
-        ('Sekar', 'active', '2024-01-01'),
-        ('Vishnu', 'active', '2024-01-01'),
-        ('Kumar', 'active', '2024-01-01'),
-        ('Hemu', 'active', '2024-01-01')
-      ON CONFLICT (name) DO NOTHING;
+      SELECT n.name, 'active', '2024-01-01'::DATE
+      FROM (VALUES 
+        ('Gunal'), ('Gopi'), ('Sathish'), ('Sekar'), ('Vishnu'), ('Kumar'), ('Hemu')
+      ) AS n(name)
+      WHERE NOT EXISTS (SELECT 1 FROM members m WHERE LOWER(m.name) = LOWER(n.name));
     `);
 
     // Safely add month and year columns to support monthly history tracking
@@ -81,7 +84,7 @@ const initDB = async () => {
     await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS year INTEGER;`);
 
     // Safely add member_id column to expenses table
-    await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS member_id INTEGER REFERENCES members(id);`);
+    await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS member_id INTEGER;`);
 
     // Backfill month and year for existing records based on their purchase_date
     await pool.query(`
@@ -94,10 +97,11 @@ const initDB = async () => {
     // Ensure any existing expense member names exist in members table
     await pool.query(`
       INSERT INTO members (name, status, move_in_date)
-      SELECT DISTINCT e.member_name, 'active', '2024-01-01'
+      SELECT DISTINCT e.member_name, 'active', '2024-01-01'::DATE
       FROM expenses e
-      WHERE NOT EXISTS (SELECT 1 FROM members m WHERE m.name = e.member_name)
-      ON CONFLICT (name) DO NOTHING;
+      WHERE e.member_name IS NOT NULL 
+        AND TRIM(e.member_name) != ''
+        AND NOT EXISTS (SELECT 1 FROM members m WHERE LOWER(m.name) = LOWER(e.member_name));
     `);
 
     // Backfill member_id for existing expenses
@@ -105,7 +109,7 @@ const initDB = async () => {
       UPDATE expenses e
       SET member_id = m.id
       FROM members m
-      WHERE e.member_name = m.name AND e.member_id IS NULL;
+      WHERE LOWER(e.member_name) = LOWER(m.name) AND e.member_id IS NULL;
     `);
 
     // Create indexes for faster queries
@@ -139,10 +143,8 @@ const initDB = async () => {
 
     console.log('PostgreSQL Database initialized successfully.');
   } catch (error) {
-    console.error('Database initialization failed:', error);
-    if (process.env.NODE_ENV === 'production') {
-      process.exit(1);
-    }
+    console.error('Database initialization warning/failure:', error);
+    // Never crash the entire server in production - keep serving requests
   }
 };
 

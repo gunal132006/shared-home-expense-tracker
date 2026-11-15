@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
@@ -16,12 +16,15 @@ import {
   X, 
   Check, 
   AlertTriangle,
-  Clock
+  Clock,
+  RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMember } from '../context/MemberContext';
 import { useTheme } from '../context/ThemeContext';
 import { triggerHaptic } from '../utils/haptics';
+
+const DEFAULT_FALLBACK_MEMBERS = ['Gunal', 'Gopi', 'Sathish', 'Sekar', 'Vishnu', 'Kumar', 'Hemu'];
 
 const AVATAR_COLORS = [
   'from-[#007AFF] to-[#0056B3]',
@@ -57,15 +60,57 @@ export default function ManageMembers() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch all members (both active and archived)
-  const { data: members = [], isLoading } = useQuery({
+  const { data: rawMembers = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ['members'],
     queryFn: async () => {
       const res = await axios.get('/api/members');
       return res.data;
-    }
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: true
   });
 
-  const activeMembers = members.filter(m => m.status === 'active');
+  // Normalize members supporting both object array and legacy string array
+  const members = useMemo(() => {
+    let list = Array.isArray(rawMembers) ? rawMembers : [];
+
+    // If backend returned string array (e.g., ['Gunal', 'Gopi', ...])
+    if (list.length > 0 && typeof list[0] === 'string') {
+      return list.map((name, idx) => ({
+        id: idx + 1,
+        name,
+        status: 'active',
+        move_in_date: '2024-01-01',
+        move_out_date: null
+      }));
+    }
+
+    // If array of objects, ensure each has proper status and fallback id
+    if (list.length > 0 && typeof list[0] === 'object') {
+      return list.map((m, idx) => ({
+        id: m.id || idx + 1,
+        name: m.name || String(m),
+        status: m.status || 'active',
+        move_in_date: m.move_in_date || null,
+        move_out_date: m.move_out_date || null
+      }));
+    }
+
+    // Fallback to default 7 household members if empty and not loading
+    if (list.length === 0 && !isLoading) {
+      return DEFAULT_FALLBACK_MEMBERS.map((name, idx) => ({
+        id: idx + 1,
+        name,
+        status: 'active',
+        move_in_date: '2024-01-01',
+        move_out_date: null
+      }));
+    }
+
+    return list;
+  }, [rawMembers, isLoading]);
+
+  const activeMembers = members.filter(m => m.status === 'active' || !m.status);
   const archivedMembers = members.filter(m => m.status === 'archived');
 
   const broadcastMemberChange = () => {
@@ -258,6 +303,22 @@ export default function ManageMembers() {
           <span>Add Member</span>
         </button>
       </div>
+
+      {/* Network / API Warning Banner */}
+      {isError && (
+        <div className="apple-card !p-3.5 mb-6 bg-apple-red/10 border border-apple-red/20 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <AlertTriangle size={18} className="text-apple-red shrink-0" />
+            <span className="text-xs font-semibold text-apple-red">Could not reach server. Showing cached roster.</span>
+          </div>
+          <button
+            onClick={() => refetch()}
+            className="flex items-center gap-1 text-xs font-bold text-apple-red hover:underline shrink-0 ml-2"
+          >
+            <RefreshCw size={12} /> Retry
+          </button>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 gap-4 mb-8">

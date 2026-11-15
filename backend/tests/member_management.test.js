@@ -106,6 +106,23 @@ class MockDB {
 
     // 3. INSERT INTO members
     if (s.includes('INSERT INTO members (name, status, move_in_date)')) {
+      if (s.includes('WHERE NOT EXISTS')) {
+        const name = params[0];
+        if (name && !this.members.some(m => m.name.toLowerCase() === name.toLowerCase())) {
+          const newMember = {
+            id: this.nextMemberId++,
+            name,
+            status: 'active',
+            move_in_date: '2024-01-01',
+            move_out_date: null,
+            created_at: new Date(),
+            updated_at: new Date()
+          };
+          this.members.push(newMember);
+          return { rows: [JSON.parse(JSON.stringify(newMember))] };
+        }
+        return { rows: [] };
+      }
       const [name, status, move_in_date] = params.length === 2 ? [params[0], 'active', params[1]] : params;
       const newMember = {
         id: this.nextMemberId++,
